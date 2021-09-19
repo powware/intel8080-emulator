@@ -4,17 +4,15 @@
 #include <vector>
 #include <tuple>
 
-#include "memory_interface.h"
+#include "ram.h"
+#include "rom.h"
 
 class MemoryMap final
 {
-
 public:
-    template <class... Memory>
-    MemoryMap(Memory &&...memories)
-    {
-        (CreateMapping(std::forward<Memory>(memories)), ...);
-    }
+    MemoryMap() {}
+
+    virtual ~MemoryMap() {}
 
     std::size_t GetSize() const
     {
@@ -43,17 +41,17 @@ public:
         return std::get<1>(mappings_[index])->Write(address - std::get<0>(mappings_[index]), data);
     }
 
+    template <class MemoryType, typename... Args>
+    void AddMemory(Args &&...args)
+    {
+        const uint16_t address = mappings_.size() ? static_cast<uint16_t>(std::get<0>(mappings_.back()) + std::get<1>(mappings_.back())->GetSize()) : 0;
+        mappings_.emplace_back(std::make_tuple(address, std::make_unique<MemoryType>(std::forward<Args>(args)...)));
+        size_ += std::get<1>(mappings_.back())->GetSize();
+    }
+
 private:
     std::size_t size_{0};
     std::vector<std::tuple<uint16_t, std::unique_ptr<MemoryInterface>>> mappings_;
-
-    template <class Memory>
-    void CreateMapping(Memory &&memory)
-    {
-        const uint16_t address = mappings_.size() ? static_cast<uint16_t>(std::get<0>(mappings_.back()) + std::get<1>(mappings_.back())->GetSize()) : 0;
-        mappings_.emplace_back(std::make_tuple(address, std::make_unique<Memory>(std::forward<Memory>(memory))));
-        size_ += std::get<1>(mappings_.back())->GetSize();
-    }
 
     bool GetMappingIndex(uint16_t address, std::size_t &index) const
     {

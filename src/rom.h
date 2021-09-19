@@ -6,21 +6,23 @@
 
 #include "memory_interface.h"
 
-class Rom final : public MemoryInterface
+class ROM final : public MemoryInterface
 {
 public:
     template <typename... Paths>
-    Rom(Paths &&...file_paths)
+    ROM(Paths &&...file_paths)
     {
+        data_.reserve((std::filesystem::file_size(std::forward<Paths>(file_paths)) + ...));
+
         (InsertData(std::forward<Paths>(file_paths)),
          ...);
     }
 
-    Rom(const Rom &) = delete;
+    ROM(const ROM &) = delete;
 
-    Rom(Rom &&rom) : data_(std::move(rom.data_)) {}
+    ROM(ROM &&rom) : data_(std::move(rom.data_)) {}
 
-    virtual ~Rom(){};
+    virtual ~ROM(){};
 
     std::size_t GetSize() const override
     {
@@ -29,24 +31,25 @@ public:
 
     bool Read(std::size_t index, uint8_t &data) const override
     {
-        data = static_cast<uint8_t>(data_[index]);
+        data = data_[index];
 
         return true;
     }
 
     bool Write(std::size_t index, uint8_t data) override
     {
-        data_[index] = static_cast<char>(data);
+        (void)index;
+        (void)data;
 
-        return true;
+        return false;
     }
 
-    auto operator=(const Rom &) = delete;
+    auto operator=(const ROM &) = delete;
 
-    auto operator=(Rom &&) = delete;
+    auto operator=(ROM &&) = delete;
 
 private:
-    std::vector<char> data_;
+    std::vector<uint8_t> data_;
 
     template <typename Path>
     void InsertData(const Path &file_path)

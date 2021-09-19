@@ -11,14 +11,6 @@
 #include "rom.h"
 #include "memory_map.h"
 
-enum OpCode : uint8_t
-{
-    MOV = 0b0100'0000,
-    MOV_r_M = 0b0100'1100,
-    MOV_M_r = 0b0111'0000
-
-};
-
 enum class RegisterCode : uint8_t
 {
     A = 0b111,
@@ -118,23 +110,31 @@ private:
             return false;
         }
 
-        if (op_code & MOV)
+        if (op_code == Instructions::MOV_r1_r2)
         {
-            if (op_code & MOV_r_M)
+            if (op_code == Instructions::HALT)
+            {
+                std::cout << "HALT\n";
+            }
+            if (op_code == Instructions::MOV_r_M)
             {
                 Register8 &r = GetRegister8FromOpCode<2>(op_code);
 
                 memory_map_.Write(hl_, r);
 
                 program_counter_++;
+
+                std::cout << "MOV_r_M: " << r << " " << hl_ << "\n";
             }
-            else if (op_code & MOV_M_r)
+            else if (op_code == Instructions::MOV_M_r)
             {
                 Register8 &r = GetRegister8FromOpCode<5>(op_code);
 
                 memory_map_.Read(hl_, r);
 
                 program_counter_++;
+
+                std::cout << "MOV_M_r: " << hl_ << " " << r << "\n";
             }
             else // MOV_r1_r2
             {
@@ -144,6 +144,8 @@ private:
                 r2 = r1;
 
                 program_counter_++;
+
+                std::cout << "MOV_r1_r2: " << r1 << " " << r2 << "\n";
             }
         }
         else

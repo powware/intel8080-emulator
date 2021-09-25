@@ -3,59 +3,37 @@
 
 #include <thread>
 #include <cassert>
+#include <cassert>
 
 #include "register.h"
 #include "instruction.h"
 
 #include "ram.h"
 #include "rom.h"
-#include "memory_map.h"
+#include "memory.h"
 
-enum class RegisterCode : uint8_t
-{
-    A = 0b111,
-    B = 0b000,
-    C = 0b001,
-    D = 0b010,
-    E = 0b011,
-    H = 0b100,
-    L = 0b101
-};
-
-enum RegisterPairCode : uint8_t
-{
-    BC = 00,
-    DE = 01,
-    HL = 10,
-    SP = 11
-};
-
-void HexDump(const MemoryMap &memory)
-{
-    const char *numbers = "0123456789ABCDEF";
-    for (uint16_t i = 0; i < static_cast<uint16_t>(memory.GetSize()); i += 0x10)
-    {
-        std::cout << numbers[(i & 0x0F000) >> (3 * 4)];
-        std::cout << numbers[(i & 0x00F00) >> (2 * 4)];
-        std::cout << numbers[(i & 0x000F0) >> (1 * 4)];
-        std::cout << numbers[(i & 0x0000F)];
-
-        for (uint16_t j = 0; j < 0xF; j++)
-        {
-            uint8_t value;
-            if (!memory.Read(i + j, value))
-            {
-                return;
-            }
-
-            std::cout << " ";
-            std::cout << numbers[(value & 0xF0) >> (1 * 4)];
-            std::cout << numbers[(value & 0x0F)];
-        }
-
-        std::cout << std::endl;
-    }
-}
+//void HexDump(const Memory &memory)
+//{
+//    const char *numbers = "0123456789ABCDEF";
+//    for (uint16_t i = 0; i < static_cast<uint16_t>(memory.GetSize()); i += 0x10)
+//    {
+//        std::cout << numbers[(i & 0x0F000) >> (3 * 4)];
+//        std::cout << numbers[(i & 0x00F00) >> (2 * 4)];
+//        std::cout << numbers[(i & 0x000F0) >> (1 * 4)];
+//        std::cout << numbers[(i & 0x0000F)];
+//
+//        for (uint16_t j = 0; j < 0xF; j++)
+//        {
+//            uint8_t value = memory.Read(i + j);
+//
+//            std::cout << " ";
+//            std::cout << numbers[(value & 0xF0) >> (1 * 4)];
+//            std::cout << numbers[(value & 0x0F)];
+//        }
+//
+//        std::cout << std::endl;
+//    }
+//}
 
 class CPU final
 {
@@ -74,146 +52,691 @@ public:
         memory_map_.AddMemory<RAM>(size);
     }
 
-    void StartExecution()
+    void StartExecution() noexcept
     {
-        HexDump(memory_map_);
-        //execution_thread_ = std::thread([this]()
-        //                                {
-        while (true)
+        try
         {
-            if (!FetchInstruction())
+            while (true)
             {
-                std::cout << "instruction invalid or not supported\n";
+                auto op_code = FetchInstruction();
+                ExecuteInstruction(op_code);
             }
         }
-        //                                });
+        catch (std::runtime_error &exception)
+        {
+            std::cout << exception.what() << "\n";
+        }
     }
 
 private:
-    RegisterPair astatus_{"A", "Status"};
+    struct
+    {
+        bool zero;
+        bool sign;
+        bool parity;
+        bool carry;
+        bool auxiliary_carry;
+    } flags_;
+
+    Register a_{"A"};
+
     RegisterPair bc_{"B", "C"};
+    Register &b_ = bc_.high_;
+    Register &c_ = bc_.low_;
+
     RegisterPair de_{"D", "E"};
+    Register &d_ = de_.high_;
+    Register &e_ = de_.low_;
+
     RegisterPair hl_{"H", "L"};
+    Register &h_ = hl_.high_;
+    Register &l_ = hl_.low_;
 
-    Register16 stack_pointer_{"Stack Pointer"};
-    Register16 program_counter_{"Program Counter"};
+    RegisterPair stack_pointer_{"Stack Pointer"};
+    RegisterPair program_counter_{"Program Counter"};
 
-    MemoryMap memory_map_;
+    Memory memory_map_;
 
     std::thread execution_thread_;
 
-    bool FetchInstruction()
+    uint8_t FetchInstruction()
     {
-        uint8_t op_code;
-        if (!memory_map_.Read(program_counter_.GetHighLow(), op_code))
+        return memory_map_.Read(program_counter_);
+    }
+
+    void ExecuteInstruction(uint8_t op_code)
+    {
+        if (op_code == InstructionSet::MOV_r1_r2)
         {
-            return false;
-        }
-
-        if (op_code == Instructions::MOV_r1_r2)
-        {
-            if (op_code == Instructions::HALT)
+            if (op_code == InstructionSet::HLT)
             {
-                std::cout << "HALT\n";
+                std::cout << "HLT\n";
             }
-            if (op_code == Instructions::MOV_r_M)
+            if (op_code == InstructionSet::MOV_r_M)
             {
-                Register8 &r = GetRegister8FromOpCode<2>(op_code);
+                auto &destination = GetDestinationRegister(op_code);
 
-                memory_map_.Write(hl_, r);
+                destination = memory_map_.Read(hl_);
 
-                program_counter_++;
-
-                std::cout << "MOV_r_M: " << r << " " << hl_ << "\n";
+                std::cout << "MOV_r_M: " << destination << " <- (" << hl_ << ")\n";
             }
-            else if (op_code == Instructions::MOV_M_r)
+            else if (op_code == InstructionSet::MOV_M_r)
             {
-                Register8 &r = GetRegister8FromOpCode<5>(op_code);
+                auto &source = GetSourceRegister(op_code);
 
-                memory_map_.Read(hl_, r);
+                memory_map_.Write(hl_, source);
 
-                program_counter_++;
-
-                std::cout << "MOV_M_r: " << hl_ << " " << r << "\n";
+                std::cout << "MOV_M_r: (" << hl_ << ") <- " << source << "\n";
             }
             else // MOV_r1_r2
             {
-                Register8 &r1 = GetRegister8FromOpCode<2>(op_code);
-                Register8 &r2 = GetRegister8FromOpCode<5>(op_code);
+                auto &destination = GetDestinationRegister(op_code);
+                auto &source = GetSourceRegister(op_code);
 
-                r2 = r1;
+                destination = source;
 
-                program_counter_++;
-
-                std::cout << "MOV_r1_r2: " << r1 << " " << r2 << "\n";
+                std::cout << "MOV_r1_r2: " << destination << " <- " << source << "\n";
             }
         }
+        else if (op_code == InstructionSet::MVI_r)
+        {
+            if (op_code == InstructionSet::MVI_M)
+            {
+                auto immediate = memory_map_.Read(++program_counter_);
+                memory_map_.Write(hl_, immediate);
+
+                std::cout << "MVI_M: (" << hl_ << ") <- " << int(immediate) << "\n";
+            }
+            else // MVI_r
+            {
+                auto immediate = memory_map_.Read(++program_counter_);
+                auto &destination = GetDestinationRegister(op_code);
+                destination = immediate;
+
+                std::cout << "MIV_r: " << destination << " <- " << int(immediate) << "\n";
+            }
+        }
+        else if (op_code == InstructionSet::LXI)
+        {
+            auto &destination = GetRegisterPair(op_code);
+            auto immediate_low = memory_map_.Read(++program_counter_);
+            auto immediate_high = memory_map_.Read(++program_counter_);
+            destination.high_ = immediate_high;
+            destination.low_ = immediate_low;
+
+            std::cout << "LXI: " << destination << " <- " << int((immediate_high << 8) | immediate_low) << "\n";
+        }
+        else if (op_code == InstructionSet::LDAX)
+        {
+            if (op_code == InstructionSet::LDA)
+            {
+                auto immediate_low = memory_map_.Read(++program_counter_);
+                auto immediate_high = memory_map_.Read(++program_counter_);
+
+                uint16_t immediate = (immediate_high << 8) | immediate_low;
+
+                std::cout << "LDA: " << a_ << " <- (" << int(immediate) << ")\n";
+                try
+                {
+                    a_ = memory_map_.Read(immediate);
+                }
+                catch (std::runtime_error &exception)
+                {
+                    std::cout << exception.what() << "\n";
+                }
+            }
+            else if (op_code == InstructionSet::LHLD)
+            {
+                auto immediate_low = memory_map_.Read(++program_counter_);
+                auto immediate_high = memory_map_.Read(++program_counter_);
+
+                uint16_t immediate = (immediate_high << 8) | immediate_low;
+
+                l_ = memory_map_.Read(immediate);
+                h_ = memory_map_.Read(++immediate);
+
+                std::cout << "LHLD: " << l_ << " <- (" << immediate - 1 << ") && " << h_ << " <- (" << immediate << ")\n";
+            }
+            else // LDAX
+            {
+                auto &source = GetRegisterPair(op_code);
+                a_ = memory_map_.Read(source);
+
+                std::cout << "LDAX: " << a_ << " <- (" << source << ")\n";
+            }
+        }
+        else if (op_code == InstructionSet::STAX)
+        {
+            if (op_code == InstructionSet::STA)
+            {
+                auto immediate_low = memory_map_.Read(++program_counter_);
+                auto immediate_high = memory_map_.Read(++program_counter_);
+
+                uint16_t immediate = (immediate_high << 8) | immediate_low;
+
+                std::cout << "STA: (" << int(immediate) << ")" << a_ << "\n";
+                try
+                {
+                    memory_map_.Write(immediate, a_);
+                }
+                catch (std::runtime_error &exception)
+                {
+                    std::cout << exception.what() << "\n";
+                }
+            }
+            else if (op_code == InstructionSet::SHLD)
+            {
+                auto immediate_low = memory_map_.Read(++program_counter_);
+                auto immediate_high = memory_map_.Read(++program_counter_);
+
+                uint16_t immediate = (immediate_high << 8) | immediate_low;
+
+                memory_map_.Write(immediate, l_);
+                memory_map_.Write(++immediate, h_);
+
+                std::cout << "SHLD: (" << immediate - 1 << ") <- " << l_ << " && (" << immediate << ")" << h_ << "\n";
+            }
+            else // STAX
+            {
+                auto &destination = GetRegisterPair(op_code);
+                memory_map_.Write(destination, a_);
+
+                std::cout << "STAX: (" << destination << ") <- " << a_ << "\n";
+            }
+        }
+        else if (op_code == InstructionSet::XCHG)
+        {
+            swap(h_, d_);
+            swap(l_, e_);
+
+            std::cout << "XCHG\n";
+        }
+        else if (op_code == InstructionSet::ADD_r)
+        {
+            if (op_code == InstructionSet::ADD_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = a_ + memory;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "ADD_M\n";
+            }
+            else // ADD_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                auto temp = a_ + source;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "ADD_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::ADI)
+        {
+
+            auto immediate = memory_map_.Read(++program_counter_);
+            auto temp = a_ + immediate;
+            SetAllFlags(temp);
+            a_ = temp & 0xFF;
+
+            std::cout << "ADi\n";
+        }
+        else if (op_code == InstructionSet::ADC_r)
+        {
+            if (op_code == InstructionSet::ADC_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = a_ + memory + flags_.carry;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "ADC_M\n";
+            }
+            else // ADC_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                auto temp = a_ + source + flags_.carry;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "ADC_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::ACI)
+        {
+
+            auto immediate = memory_map_.Read(++program_counter_);
+            auto temp = a_ + immediate + flags_.carry;
+            SetAllFlags(temp);
+            a_ = temp & 0xFF;
+
+            std::cout << "ACI\n";
+        }
+        else if (op_code == InstructionSet::SUB_r)
+        {
+            if (op_code == InstructionSet::SUB_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = a_ - memory;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "SUB_M\n";
+            }
+            else // SUB_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                auto temp = a_ - source;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "SUB_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::SUI)
+        {
+
+            auto immediate = memory_map_.Read(++program_counter_);
+            auto temp = a_ - immediate;
+            SetAllFlags(temp);
+            a_ = temp & 0xFF;
+
+            std::cout << "SUI\n";
+        }
+        else if (op_code == InstructionSet::SBB_r)
+        {
+            if (op_code == InstructionSet::SBB_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = a_ - memory - flags_.carry;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "SBB_M\n";
+            }
+            else // SBB_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                auto temp = a_ - source - flags_.carry;
+                SetAllFlags(temp);
+                a_ = temp & 0xFF;
+
+                std::cout << "SBB_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::SBI)
+        {
+
+            auto immediate = memory_map_.Read(++program_counter_);
+            auto temp = a_ - immediate - flags_.carry;
+            SetAllFlags(temp);
+            a_ = temp & 0xFF;
+
+            std::cout << "SBI\n";
+        }
+        else if (op_code == InstructionSet::INR_r)
+        {
+            if (op_code == InstructionSet::INR_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = memory + 1;
+                SetAllFlagsExceptCarry(temp);
+                memory_map_.Write(hl_, temp & 0xFF);
+
+                std::cout << "INR_M\n";
+            }
+            else // INR_R
+            {
+                auto &destination = GetDestinationRegister(op_code);
+                auto temp = destination + 1;
+                SetAllFlagsExceptCarry(temp);
+                destination = temp & 0xFF;
+
+                std::cout << "INR_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::DCR_r)
+        {
+            if (op_code == InstructionSet::DCR_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = memory - 1;
+                SetAllFlagsExceptCarry(temp);
+                memory_map_.Write(hl_, temp & 0xFF);
+
+                std::cout << "DCR_M\n";
+            }
+            else // DCR_R
+            {
+                auto &destination = GetDestinationRegister(op_code);
+                auto temp = destination - 1;
+                SetAllFlagsExceptCarry(temp);
+                destination = temp & 0xFF;
+
+                std::cout << "DCR_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::INX)
+        {
+            auto &destination = GetRegisterPair(op_code);
+            destination = destination + 1;
+
+            std::cout << "INX\n";
+        }
+        else if (op_code == InstructionSet::DCX)
+        {
+            auto &destination = GetRegisterPair(op_code);
+            destination = destination - 1;
+
+            std::cout << "DCX\n";
+        }
+        else if (op_code == InstructionSet::DAD)
+        {
+            auto &source = GetRegisterPair(op_code);
+            auto temp = hl_ + source;
+
+            flags_.sign = (temp & 0xFFFF) == 0;
+
+            hl_ = (temp & 0xFFFF);
+
+            std::cout << "DAD\n";
+        }
+        else if (op_code == InstructionSet::DAA)
+        {
+            std::cout << "DAD"
+                      << " not supported\n";
+        }
+        else if (op_code == InstructionSet::ANA_r)
+        {
+            if (op_code == InstructionSet::ANA_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                a_ = a_ & memory;
+                SetAllFlags(a_);
+
+                std::cout << "ANA_M\n";
+            }
+            else // ANA_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                a_ = a_ & source;
+                SetAllFlags(a_);
+
+                std::cout << "ANA_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::ANI)
+        {
+            auto immediate = memory_map_.Read(++program_counter_);
+            a_ = a_ & immediate;
+            SetAllFlags(a_);
+        }
+        else if (op_code == InstructionSet::XRA_r)
+        {
+            if (op_code == InstructionSet::XRA_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                a_ = a_ ^ memory;
+                SetAllFlags(a_);
+
+                std::cout << "XRA_M\n";
+            }
+            else // XRA_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                a_ = a_ ^ source;
+                SetAllFlags(a_);
+
+                std::cout << "XRA_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::XRI)
+        {
+            auto immediate = memory_map_.Read(++program_counter_);
+            a_ = a_ ^ immediate;
+            SetAllFlags(a_);
+        }
+        else if (op_code == InstructionSet::ORA_r)
+        {
+            if (op_code == InstructionSet::ORA_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                a_ = a_ | memory;
+                SetAllFlags(a_);
+
+                std::cout << "ORA_M\n";
+            }
+            else // ORA_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                a_ = a_ | source;
+                SetAllFlags(a_);
+
+                std::cout << "ORA_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::ORI)
+        {
+            auto immediate = memory_map_.Read(++program_counter_);
+            a_ = a_ | immediate;
+            SetAllFlags(a_);
+
+            std::cout << "ORI\n";
+        }
+        else if (op_code == InstructionSet::CMP_r)
+        {
+            if (op_code == InstructionSet::CMP_M)
+            {
+                auto memory = memory_map_.Read(hl_);
+                auto temp = a_ - memory;
+                SetAllFlags(temp);
+
+                std::cout << "CMP_M\n";
+            }
+            else // CMP_r
+            {
+                auto &source = GetSourceRegister(op_code);
+                auto temp = a_ - source;
+                SetAllFlags(temp);
+
+                std::cout << "CMP_r\n";
+            }
+        }
+        else if (op_code == InstructionSet::CPI)
+        {
+            auto immediate = memory_map_.Read(++program_counter_);
+            auto temp = a_ - immediate;
+            SetAllFlags(temp);
+
+            std::cout << "CPI\n";
+        }
+        else if (op_code == InstructionSet::RLC)
+        {
+
+            auto temp = a_ << 1;
+            SetCarryFlag(temp);
+            a_ = (temp & 0xFF) | uint8_t(flags_.carry);
+
+            std::cout << "RLC\n";
+        }
+        else if (op_code == InstructionSet::RRC)
+        {
+            flags_.carry = a_ & 0b1;
+            uint8_t temp = a_ >> 1;
+            a_ = temp | (uint8_t(flags_.carry) << 8);
+
+            std::cout << "RRC\n";
+        }
+        else if (op_code == InstructionSet::RAL)
+        {
+            auto old_carry = flags_.carry;
+            auto temp = a_ << 1;
+            SetCarryFlag(temp);
+            a_ = (temp & 0xFF) | uint8_t(old_carry);
+
+            std::cout << "RAL\n";
+        }
+        else if (op_code == InstructionSet::RAR)
+        {
+            auto new_carry = a_ & 0b1;
+            uint8_t temp = a_ >> 1;
+            a_ = temp | (uint8_t(flags_.carry) << 8);
+            flags_.carry = new_carry;
+
+            std::cout << "RAR\n";
+        }
+        else if (op_code == InstructionSet::CMA)
+        {
+            a_ = ~a_;
+
+            std::cout << "CMA\n";
+        }
+        else if (op_code == InstructionSet::CMC)
+        {
+            flags_.carry = !flags_.carry;
+
+            std::cout << "CMC\n";
+        }
+        else if (op_code == InstructionSet::STC)
+        {
+            flags_.carry = true;
+
+            std::cout << "STC\n";
+        }
         else
         {
-            program_counter_++;
+            std::cout << "Instruction not supported\n";
         }
 
-        return false;
+        ++program_counter_;
     }
 
-    template <uint8_t position>
-    Register8 &GetRegister8FromOpCode(uint8_t op_code)
+    Register &GetRegister(uint8_t register_code) noexcept
     {
-        static_assert(position == 2 || position == 5);
-
-        if constexpr (position == 2)
-        {
-            return GetRegister8((op_code & 0b0011'1000) >> 3);
-        }
-        else
-        {
-            return GetRegister8(op_code & 0b0000'0111);
-        }
-    }
-
-    Register8 &GetRegister8(uint8_t register_code)
-    {
-        assert(register_code <= 0b111);
-        assert(register_code != 0b110);
+        assert(register_code <= 0b111 && register_code != 0b110);
 
         switch (RegisterCode(register_code))
         {
         case RegisterCode::A:
         {
-            return astatus_.GetHigh();
+            return a_;
         }
         break;
         case RegisterCode::B:
         {
-            return bc_.GetHigh();
+            return b_;
         }
         case RegisterCode::C:
         {
-            return bc_.GetLow();
+            return c_;
         }
         case RegisterCode::D:
         {
-            return de_.GetHigh();
+            return d_;
         }
         case RegisterCode::E:
         {
-            return de_.GetLow();
+            return e_;
         }
         case RegisterCode::H:
         {
-            return hl_.GetHigh();
+            return h_;
         }
         case RegisterCode::L:
         {
-            return hl_.GetLow();
+            return l_;
         }
         break;
-        default:
+        }
+
+        std::terminate();
+    }
+
+    Register &GetSourceRegister(uint8_t op_code) noexcept
+    {
+        return GetRegister(op_code & 0b0000'0111);
+    }
+
+    Register &GetDestinationRegister(uint8_t op_code) noexcept
+    {
+        return GetRegister((op_code & 0b0011'1000) >> 3);
+    }
+
+    RegisterPair &GetRegisterPair(uint8_t op_code) noexcept
+    {
+        const auto register_pair_code = (op_code & 0b0011'0000) >> 4;
+
+        switch (RegisterPairCode(register_pair_code))
         {
-            return astatus_.GetLow(); // needed to satisfy compiler
+        case RegisterPairCode::BC:
+        {
+            return bc_;
+        }
+        break;
+        case RegisterPairCode::DE:
+        {
+            return de_;
+        }
+        case RegisterPairCode::HL:
+        {
+            return hl_;
+        }
+        case RegisterPairCode::SP:
+        {
+            return stack_pointer_;
         }
         break;
         }
+
+        std::terminate();
+    }
+
+    inline void SetAllFlags(int temp)
+    {
+        SetAllFlagsExceptCarry(temp);
+        SetCarryFlag(temp);
+    }
+
+    inline void SetAllFlagsExceptCarry(int temp)
+    {
+        SetZeroFlag(temp);
+        SetSignFlag(temp);
+        SetParityFlag(temp);
+        SetCarryFlag(temp);
+        SetAuxiliaryCarryFlag(temp);
+    }
+
+    inline void SetZeroFlag(int temp)
+    {
+        flags_.zero = (temp & 0xFF) == 0;
+    }
+
+    inline void SetSignFlag(int temp)
+    {
+        flags_.sign = (temp & 0b1000'0000) == 1;
+    }
+
+    inline void SetParityFlag(int temp)
+    {
+        auto sum_of_bits = 0;
+        for (int i = 0; i < 8; ++i)
+        {
+            sum_of_bits += (temp & 1 << i) >> i;
+        }
+
+        flags_.parity = (sum_of_bits % 2) == 0;
+    }
+
+    inline void SetCarryFlag(int temp)
+    {
+        flags_.carry = temp > 0xFF;
+    }
+
+    inline void SetAuxiliaryCarryFlag(int temp)
+    {
+        (void)temp;
+        // not yet supported
     }
 };
 

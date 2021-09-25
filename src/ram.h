@@ -1,6 +1,7 @@
 #ifndef RAM_H
 #define RAM_H
 
+#include <cassert>
 #include <vector>
 
 #include "memory_interface.h"
@@ -12,23 +13,24 @@ public:
 
     virtual ~RAM() {}
 
-    std::size_t GetSize() const override
+    std::size_t GetSize() const noexcept override
     {
         return data_.size();
     }
 
-    bool Read(std::size_t index, uint8_t &data) const override
+    uint8_t Read(std::size_t index) const override
     {
-        data = data_[index];
+        assert(index < data_.size());
 
-        return true;
+        return data_[index];
     }
 
-    bool Write(std::size_t index, uint8_t data) override
+    void
+    Write(std::size_t index, uint8_t data) override
     {
-        data_[index] = data;
+        assert(index < data_.size());
 
-        return true;
+        data_[index] = data;
     }
 
     auto operator=(const RAM &) = delete;

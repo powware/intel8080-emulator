@@ -24,24 +24,24 @@ public:
 
     virtual ~ROM(){};
 
-    std::size_t GetSize() const override
+    std::size_t GetSize() const noexcept override
     {
         return data_.size();
     }
 
-    bool Read(std::size_t index, uint8_t &data) const override
+    uint8_t Read(std::size_t index) const override
     {
-        data = data_[index];
+        assert(index < data_.size());
 
-        return true;
+        return data_[index];
     }
 
-    bool Write(std::size_t index, uint8_t data) override
+    void Write(std::size_t index, uint8_t data) override
     {
         (void)index;
         (void)data;
 
-        return false;
+        throw std::runtime_error("Write on read only memory.");
     }
 
     auto operator=(const ROM &) = delete;

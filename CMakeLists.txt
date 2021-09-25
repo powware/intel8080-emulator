@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 project(intel8080-emulator CXX)
 
 add_executable(intel8080-emulator ${PROJECT_SOURCE_DIR}/src/main.cpp
+                                  ${PROJECT_SOURCE_DIR}/src/memory.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

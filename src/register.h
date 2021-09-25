@@ -3,41 +3,83 @@
 
 #include <array>
 #include <string>
-#include <string_view>
 
-class Register8 final
+enum class RegisterCode : uint8_t
+{
+    A = 0b111,
+    B = 0b000,
+    C = 0b001,
+    D = 0b010,
+    E = 0b011,
+    H = 0b100,
+    L = 0b101
+};
+
+enum RegisterPairCode : uint8_t
+{
+    BC = 0b00,
+    DE = 0b01,
+    HL = 0b10,
+    SP = 0b11
+};
+
+class Register final
 {
 public:
-    Register8(std::string name) : data_reference_(data_), name_(name) {}
+    Register(std::string name) : data_reference_(data_), name_(name) {}
 
-    Register8(uint8_t &data, std::string name) : data_reference_(data), name_(name) {}
+    Register(uint8_t &data, std::string name) : data_reference_(data), name_(name) {}
 
-    Register8(const Register8 &) = delete;
+    Register(const Register &) = delete;
 
-    Register8(Register8 &&) = delete;
+    Register(Register &&) = delete;
 
-    Register8 &operator=(uint8_t data)
+    auto &GetData()
     {
-        data_reference_ = data;
+        return data_reference_;
+    }
+
+    auto &operator=(const Register &r)
+    {
+        data_reference_ = r.data_reference_;
 
         return *this;
     }
 
-    Register8 &operator=(Register8 &data)
+    auto &operator=(Register &&r) = delete;
+
+    auto &operator=(const uint8_t &u)
     {
-        data_reference_ = data;
+        data_reference_ = u;
 
         return *this;
     }
 
-    operator uint8_t &()
+    auto &operator++()
     {
-        return data_;
+        ++data_reference_;
+
+        return *this;
     }
 
-    operator const std::string &() const
+    auto &operator++(int) = delete;
+
+    operator uint8_t()
     {
-        return name_;
+        return data_reference_;
+    }
+
+    friend inline void swap(Register &r1, Register &r2)
+    {
+        uint8_t temp = r1;
+        r1 = r2;
+        r2 = temp;
+    }
+
+    friend inline auto &
+    operator<<(std::ostream &os, const Register &r)
+    {
+        return os << r.name_ << "(" << int{r.data_reference_} << ")";
     }
 
 private:
@@ -46,84 +88,64 @@ private:
     const std::string name_;
 };
 
-class Register16 final
+class RegisterPair final
 {
 public:
-    Register16(std::string name) : name_(name) {}
+    Register high_;
+    Register low_;
 
-    Register16(const Register16 &) = delete;
+    RegisterPair(std::string name) : high_(reinterpret_cast<uint8_t *>(&data_)[0], name + "_high"), low_(reinterpret_cast<uint8_t *>(&data_)[1], name + "_low"), name_(name) {}
 
-    Register16(Register16 &&) = delete;
+    RegisterPair(std::string high_name, std::string low_name) : high_(reinterpret_cast<uint8_t *>(&data_)[0], high_name), low_(reinterpret_cast<uint8_t *>(&data_)[1], low_name), name_(high_name + low_name) {}
 
-    uint8_t &GetHigh()
+    RegisterPair(const RegisterPair &) = delete;
+
+    RegisterPair(RegisterPair &&) = delete;
+
+    auto &operator=(const RegisterPair &r)
     {
-        return reinterpret_cast<uint8_t *>(&data_)[0];
+        data_ = r.data_;
+
+        return *this;
     }
 
-    uint8_t &GetLow()
+    auto &operator=(RegisterPair &&) = delete;
+
+    auto &operator=(const uint16_t &u)
     {
-        return reinterpret_cast<uint8_t *>(&data_)[1];
+        data_ = u;
+
+        return *this;
     }
 
-    uint16_t &GetHighLow()
+    auto &operator++()
+    {
+        ++data_;
+
+        return *this;
+    }
+
+    auto &operator++(int) = delete;
+
+    auto &operator+=(uint16_t u)
+    {
+        data_ += u;
+
+        return *this;
+    }
+
+    operator uint16_t()
     {
         return data_;
     }
 
-    operator uint16_t &()
+    friend auto &operator<<(std::ostream &os, const RegisterPair &r)
     {
-        return data_;
-    }
-
-    operator const std::string &() const
-    {
-        return name_;
+        return os << r.name_ << "(" << int{r.data_} << ")";
     }
 
 private:
     uint16_t data_{0};
-    const std::string name_;
-};
-
-class RegisterPair final
-{
-public:
-    RegisterPair(std::string name_high, std::string name_low) : high_low_(name_high + name_low), high_(high_low_.GetHigh(), name_high), low_(high_low_.GetLow(), name_low) {}
-
-    Register8 &GetHigh()
-    {
-        return high_;
-    }
-
-    Register8 &GetLow()
-    {
-        return low_;
-    }
-
-    Register16 &GetHighLow()
-    {
-        return high_low_;
-    }
-
-    operator Register16 &()
-    {
-        return high_low_;
-    }
-
-    operator uint16_t &()
-    {
-        return high_low_;
-    }
-
-    operator const std::string &() const
-    {
-        return high_low_;
-    }
-
-private:
-    Register16 high_low_;
-    Register8 high_;
-    Register8 low_;
     const std::string name_;
 };
 

@@ -7,7 +7,6 @@
 #include <sstream>
 
 #include "cpu.h"
-#include "memory_map.h"
 
 int main()
 {
@@ -20,7 +19,8 @@ int main()
     cpu.AddROM(space_invaders_path / "invaders.f");
     cpu.AddROM(space_invaders_path / "invaders.g");
     cpu.AddROM(space_invaders_path / "invaders.h");
-    cpu.AddRAM(0x10);
+    cpu.AddRAM(0x400);
+    cpu.AddRAM(0x1600);
 
     cpu.StartExecution();
 

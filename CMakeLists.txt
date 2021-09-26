@@ -32,9 +32,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
                                                       -Wmisleading-indentation
                                                       -Wconversion
                                                       -Wsign-conversion
-                                                      -fno-exceptions
-                                                      -fno-unwind-tables
-                                                      -fno-asynchronous-unwind-tables
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(intel8080-emulator PRIVATE /permissive-

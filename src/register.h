@@ -3,6 +3,9 @@
 
 #include <array>
 #include <string>
+#include <type_traits>
+
+#include "types.h"
 
 enum class RegisterCode : uint8_t
 {
@@ -26,50 +29,43 @@ enum RegisterPairCode : uint8_t
 class Register final
 {
 public:
-    Register(std::string name) : data_reference_(data_), name_(name) {}
+    Register(std::string name) noexcept : data_(owned_data_), name_(name) {}
 
-    Register(uint8_t &data, std::string name) : data_reference_(data), name_(name) {}
+    Register(uint8_t &data, std::string name) noexcept : data_(data), name_(name) {}
 
     Register(const Register &) = delete;
 
     Register(Register &&) = delete;
 
-    auto &GetData()
+    auto &GetData() noexcept
     {
-        return data_reference_;
+        return data_;
     }
 
-    auto &operator=(const Register &r)
+    auto &operator=(const Register &r) noexcept
     {
-        data_reference_ = r.data_reference_;
+        data_ = r.data_;
 
         return *this;
     }
 
     auto &operator=(Register &&r) = delete;
 
-    auto &operator=(const uint8_t &u)
+    auto &operator=(const int &value) noexcept
     {
-        data_reference_ = u;
-
-        return *this;
-    }
-
-    auto &operator++()
-    {
-        ++data_reference_;
+        data_ = narrow_cast<uint8_t>(value);
 
         return *this;
     }
 
     auto &operator++(int) = delete;
 
-    operator uint8_t()
+    operator uint8_t() const noexcept
     {
-        return data_reference_;
+        return data_;
     }
 
-    friend inline void swap(Register &r1, Register &r2)
+    friend inline void swap(Register &r1, Register &r2) noexcept
     {
         uint8_t temp = r1;
         r1 = r2;
@@ -79,12 +75,12 @@ public:
     friend inline auto &
     operator<<(std::ostream &os, const Register &r)
     {
-        return os << r.name_ << "(" << int{r.data_reference_} << ")";
+        return os << r.name_ << "(" << int{r.data_} << ")";
     }
 
 private:
-    uint8_t data_{0};
-    uint8_t &data_reference_;
+    uint8_t owned_data_{0};
+    uint8_t &data_;
     const std::string name_;
 };
 
@@ -94,15 +90,15 @@ public:
     Register high_;
     Register low_;
 
-    RegisterPair(std::string name) : high_(reinterpret_cast<uint8_t *>(&data_)[0], name + "_high"), low_(reinterpret_cast<uint8_t *>(&data_)[1], name + "_low"), name_(name) {}
+    RegisterPair(std::string name) noexcept : high_(reinterpret_cast<uint8_t *>(&data_)[0], name + "_high"), low_(reinterpret_cast<uint8_t *>(&data_)[1], name + "_low"), name_(name) {}
 
-    RegisterPair(std::string high_name, std::string low_name) : high_(reinterpret_cast<uint8_t *>(&data_)[0], high_name), low_(reinterpret_cast<uint8_t *>(&data_)[1], low_name), name_(high_name + low_name) {}
+    RegisterPair(std::string high_name, std::string low_name) noexcept : high_(reinterpret_cast<uint8_t *>(&data_)[0], high_name), low_(reinterpret_cast<uint8_t *>(&data_)[1], low_name), name_(high_name + low_name) {}
 
     RegisterPair(const RegisterPair &) = delete;
 
     RegisterPair(RegisterPair &&) = delete;
 
-    auto &operator=(const RegisterPair &r)
+    auto &operator=(const RegisterPair &r) noexcept
     {
         data_ = r.data_;
 
@@ -111,14 +107,14 @@ public:
 
     auto &operator=(RegisterPair &&) = delete;
 
-    auto &operator=(const uint16_t &u)
+    auto &operator=(int value) noexcept
     {
-        data_ = u;
+        data_ = narrow_cast<uint16_t>(value);
 
         return *this;
     }
 
-    auto &operator++()
+    auto &operator++() noexcept
     {
         ++data_;
 
@@ -127,14 +123,7 @@ public:
 
     auto &operator++(int) = delete;
 
-    auto &operator+=(uint16_t u)
-    {
-        data_ += u;
-
-        return *this;
-    }
-
-    operator uint16_t()
+    operator uint16_t() const noexcept
     {
         return data_;
     }

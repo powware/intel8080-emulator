@@ -11,7 +11,15 @@ class RAM final : public MemoryInterface
 public:
     RAM(std::size_t size) : data_(size, 0) {}
 
+    RAM(const RAM &) = delete;
+
+    RAM(RAM &&) = delete;
+
     virtual ~RAM() {}
+
+    auto operator=(const RAM &) = delete;
+
+    auto operator=(RAM &&) = delete;
 
     std::size_t GetSize() const noexcept override
     {
@@ -25,17 +33,12 @@ public:
         return data_[index];
     }
 
-    void
-    Write(std::size_t index, uint8_t data) override
+    void Write(std::size_t index, uint8_t data) override
     {
         assert(index < data_.size());
 
         data_[index] = data;
     }
-
-    auto operator=(const RAM &) = delete;
-
-    auto operator=(RAM &&) = delete;
 
 private:
     std::vector<uint8_t> data_;

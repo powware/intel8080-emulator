@@ -1,5 +1,7 @@
 #include "memory.h"
 
+#include "types.h"
+
 Memory::Memory() {}
 
 Memory::~Memory() {}

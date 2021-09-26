@@ -44,12 +44,12 @@ public:
 
     void AddROM(std::filesystem::path &&path)
     {
-        memory_map_.AddMemory<ROM>(std::forward<std::filesystem::path>(path));
+        memory_.AddMemory<ROM>(std::forward<std::filesystem::path>(path));
     }
 
     void AddRAM(std::size_t size)
     {
-        memory_map_.AddMemory<RAM>(size);
+        memory_.AddMemory<RAM>(size);
     }
 
     void StartExecution() noexcept
@@ -95,13 +95,13 @@ private:
     RegisterPair stack_pointer_{"Stack Pointer"};
     RegisterPair program_counter_{"Program Counter"};
 
-    Memory memory_map_;
+    Memory memory_;
 
     std::thread execution_thread_;
 
     uint8_t FetchInstruction()
     {
-        return memory_map_.Read(program_counter_);
+        return ReadMemory(program_counter_);
     }
 
     void ExecuteInstruction(uint8_t op_code)
@@ -116,7 +116,7 @@ private:
             {
                 auto &destination = GetDestinationRegister(op_code);
 
-                destination = memory_map_.Read(hl_);
+                destination = ReadMemory(hl_);
 
                 std::cout << "MOV_r_M: " << destination << " <- (" << hl_ << ")\n";
             }
@@ -124,7 +124,7 @@ private:
             {
                 auto &source = GetSourceRegister(op_code);
 
-                memory_map_.Write(hl_, source);
+                WriteMemory(hl_, source);
 
                 std::cout << "MOV_M_r: (" << hl_ << ") <- " << source << "\n";
             }
@@ -142,14 +142,15 @@ private:
         {
             if (op_code == InstructionSet::MVI_M)
             {
-                auto immediate = memory_map_.Read(++program_counter_);
-                memory_map_.Write(hl_, immediate);
+                auto immediate = ReadMemory(++program_counter_);
+
+                WriteMemory(hl_, immediate);
 
                 std::cout << "MVI_M: (" << hl_ << ") <- " << int(immediate) << "\n";
             }
             else // MVI_r
             {
-                auto immediate = memory_map_.Read(++program_counter_);
+                auto immediate = ReadMemory(++program_counter_);
                 auto &destination = GetDestinationRegister(op_code);
                 destination = immediate;
 
@@ -159,8 +160,9 @@ private:
         else if (op_code == InstructionSet::LXI)
         {
             auto &destination = GetRegisterPair(op_code);
-            auto immediate_low = memory_map_.Read(++program_counter_);
-            auto immediate_high = memory_map_.Read(++program_counter_);
+            auto immediate_low = ReadMemory(++program_counter_);
+            auto immediate_high = ReadMemory(++program_counter_);
+
             destination.high_ = immediate_high;
             destination.low_ = immediate_low;
 
@@ -170,37 +172,28 @@ private:
         {
             if (op_code == InstructionSet::LDA)
             {
-                auto immediate_low = memory_map_.Read(++program_counter_);
-                auto immediate_high = memory_map_.Read(++program_counter_);
+                auto immediate_low = ReadMemory(++program_counter_);
+                auto immediate_high = ReadMemory(++program_counter_);
+                auto immediate = (immediate_high << 8) | immediate_low;
 
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
-
-                std::cout << "LDA: " << a_ << " <- (" << int(immediate) << ")\n";
-                try
-                {
-                    a_ = memory_map_.Read(immediate);
-                }
-                catch (std::runtime_error &exception)
-                {
-                    std::cout << exception.what() << "\n";
-                }
+                a_ = ReadMemory(immediate);
             }
             else if (op_code == InstructionSet::LHLD)
             {
-                auto immediate_low = memory_map_.Read(++program_counter_);
-                auto immediate_high = memory_map_.Read(++program_counter_);
+                auto immediate_low = ReadMemory(++program_counter_);
+                auto immediate_high = ReadMemory(++program_counter_);
+                auto immediate = (immediate_high << 8) | immediate_low;
 
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
-
-                l_ = memory_map_.Read(immediate);
-                h_ = memory_map_.Read(++immediate);
+                l_ = ReadMemory(immediate);
+                h_ = ReadMemory(++immediate);
 
                 std::cout << "LHLD: " << l_ << " <- (" << immediate - 1 << ") && " << h_ << " <- (" << immediate << ")\n";
             }
             else // LDAX
             {
                 auto &source = GetRegisterPair(op_code);
-                a_ = memory_map_.Read(source);
+
+                a_ = ReadMemory(source);
 
                 std::cout << "LDAX: " << a_ << " <- (" << source << ")\n";
             }
@@ -209,37 +202,30 @@ private:
         {
             if (op_code == InstructionSet::STA)
             {
-                auto immediate_low = memory_map_.Read(++program_counter_);
-                auto immediate_high = memory_map_.Read(++program_counter_);
+                auto immediate_low = ReadMemory(++program_counter_);
+                auto immediate_high = ReadMemory(++program_counter_);
+                auto immediate = (immediate_high << 8) | immediate_low;
 
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
+                WriteMemory(immediate, a_);
 
                 std::cout << "STA: (" << int(immediate) << ")" << a_ << "\n";
-                try
-                {
-                    memory_map_.Write(immediate, a_);
-                }
-                catch (std::runtime_error &exception)
-                {
-                    std::cout << exception.what() << "\n";
-                }
             }
             else if (op_code == InstructionSet::SHLD)
             {
-                auto immediate_low = memory_map_.Read(++program_counter_);
-                auto immediate_high = memory_map_.Read(++program_counter_);
+                auto immediate_low = ReadMemory(++program_counter_);
+                auto immediate_high = ReadMemory(++program_counter_);
+                auto immediate = (immediate_high << 8) | immediate_low;
 
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
-
-                memory_map_.Write(immediate, l_);
-                memory_map_.Write(++immediate, h_);
+                WriteMemory(immediate, l_);
+                WriteMemory(++immediate, h_);
 
                 std::cout << "SHLD: (" << immediate - 1 << ") <- " << l_ << " && (" << immediate << ")" << h_ << "\n";
             }
             else // STAX
             {
                 auto &destination = GetRegisterPair(op_code);
-                memory_map_.Write(destination, a_);
+
+                WriteMemory(destination, a_);
 
                 std::cout << "STAX: (" << destination << ") <- " << a_ << "\n";
             }
@@ -255,19 +241,21 @@ private:
         {
             if (op_code == InstructionSet::ADD_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = a_ + memory;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "ADD_M\n";
             }
             else // ADD_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 auto temp = a_ + source;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "ADD_r\n";
             }
@@ -275,10 +263,11 @@ private:
         else if (op_code == InstructionSet::ADI)
         {
 
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             auto temp = a_ + immediate;
             SetAllFlags(temp);
-            a_ = temp & 0xFF;
+            a_ = temp;
 
             std::cout << "ADi\n";
         }
@@ -286,19 +275,21 @@ private:
         {
             if (op_code == InstructionSet::ADC_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = a_ + memory + flags_.carry;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "ADC_M\n";
             }
             else // ADC_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 auto temp = a_ + source + flags_.carry;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "ADC_r\n";
             }
@@ -306,10 +297,11 @@ private:
         else if (op_code == InstructionSet::ACI)
         {
 
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             auto temp = a_ + immediate + flags_.carry;
             SetAllFlags(temp);
-            a_ = temp & 0xFF;
+            a_ = temp;
 
             std::cout << "ACI\n";
         }
@@ -317,19 +309,21 @@ private:
         {
             if (op_code == InstructionSet::SUB_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = a_ - memory;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "SUB_M\n";
             }
             else // SUB_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 auto temp = a_ - source;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "SUB_r\n";
             }
@@ -337,10 +331,11 @@ private:
         else if (op_code == InstructionSet::SUI)
         {
 
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             auto temp = a_ - immediate;
             SetAllFlags(temp);
-            a_ = temp & 0xFF;
+            a_ = temp;
 
             std::cout << "SUI\n";
         }
@@ -348,19 +343,21 @@ private:
         {
             if (op_code == InstructionSet::SBB_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = a_ - memory - flags_.carry;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "SBB_M\n";
             }
             else // SBB_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 auto temp = a_ - source - flags_.carry;
                 SetAllFlags(temp);
-                a_ = temp & 0xFF;
+                a_ = temp;
 
                 std::cout << "SBB_r\n";
             }
@@ -368,10 +365,11 @@ private:
         else if (op_code == InstructionSet::SBI)
         {
 
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             auto temp = a_ - immediate - flags_.carry;
             SetAllFlags(temp);
-            a_ = temp & 0xFF;
+            a_ = temp;
 
             std::cout << "SBI\n";
         }
@@ -379,19 +377,21 @@ private:
         {
             if (op_code == InstructionSet::INR_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = memory + 1;
                 SetAllFlagsExceptCarry(temp);
-                memory_map_.Write(hl_, temp & 0xFF);
+                WriteMemory(hl_, temp);
 
                 std::cout << "INR_M\n";
             }
             else // INR_R
             {
                 auto &destination = GetDestinationRegister(op_code);
+
                 auto temp = destination + 1;
                 SetAllFlagsExceptCarry(temp);
-                destination = temp & 0xFF;
+                destination = temp;
 
                 std::cout << "INR_r\n";
             }
@@ -400,19 +400,21 @@ private:
         {
             if (op_code == InstructionSet::DCR_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = memory - 1;
                 SetAllFlagsExceptCarry(temp);
-                memory_map_.Write(hl_, temp & 0xFF);
+                WriteMemory(hl_, temp);
 
                 std::cout << "DCR_M\n";
             }
             else // DCR_R
             {
                 auto &destination = GetDestinationRegister(op_code);
+
                 auto temp = destination - 1;
                 SetAllFlagsExceptCarry(temp);
-                destination = temp & 0xFF;
+                destination = temp;
 
                 std::cout << "DCR_r\n";
             }
@@ -420,6 +422,7 @@ private:
         else if (op_code == InstructionSet::INX)
         {
             auto &destination = GetRegisterPair(op_code);
+
             destination = destination + 1;
 
             std::cout << "INX\n";
@@ -427,6 +430,7 @@ private:
         else if (op_code == InstructionSet::DCX)
         {
             auto &destination = GetRegisterPair(op_code);
+
             destination = destination - 1;
 
             std::cout << "DCX\n";
@@ -434,24 +438,23 @@ private:
         else if (op_code == InstructionSet::DAD)
         {
             auto &source = GetRegisterPair(op_code);
+
             auto temp = hl_ + source;
-
-            flags_.sign = (temp & 0xFFFF) == 0;
-
-            hl_ = (temp & 0xFFFF);
+            flags_.carry = temp > 0xFFFF;
+            hl_ = temp;
 
             std::cout << "DAD\n";
         }
         else if (op_code == InstructionSet::DAA)
         {
-            std::cout << "DAD"
-                      << " not supported\n";
+            std::cout << "DAA not supported\n";
         }
         else if (op_code == InstructionSet::ANA_r)
         {
             if (op_code == InstructionSet::ANA_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 a_ = a_ & memory;
                 SetAllFlags(a_);
 
@@ -460,6 +463,7 @@ private:
             else // ANA_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 a_ = a_ & source;
                 SetAllFlags(a_);
 
@@ -468,7 +472,8 @@ private:
         }
         else if (op_code == InstructionSet::ANI)
         {
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             a_ = a_ & immediate;
             SetAllFlags(a_);
         }
@@ -476,7 +481,8 @@ private:
         {
             if (op_code == InstructionSet::XRA_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 a_ = a_ ^ memory;
                 SetAllFlags(a_);
 
@@ -485,6 +491,7 @@ private:
             else // XRA_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 a_ = a_ ^ source;
                 SetAllFlags(a_);
 
@@ -493,7 +500,8 @@ private:
         }
         else if (op_code == InstructionSet::XRI)
         {
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             a_ = a_ ^ immediate;
             SetAllFlags(a_);
         }
@@ -501,7 +509,8 @@ private:
         {
             if (op_code == InstructionSet::ORA_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 a_ = a_ | memory;
                 SetAllFlags(a_);
 
@@ -510,6 +519,7 @@ private:
             else // ORA_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 a_ = a_ | source;
                 SetAllFlags(a_);
 
@@ -518,7 +528,8 @@ private:
         }
         else if (op_code == InstructionSet::ORI)
         {
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             a_ = a_ | immediate;
             SetAllFlags(a_);
 
@@ -528,7 +539,8 @@ private:
         {
             if (op_code == InstructionSet::CMP_M)
             {
-                auto memory = memory_map_.Read(hl_);
+                auto memory = ReadMemory(hl_);
+
                 auto temp = a_ - memory;
                 SetAllFlags(temp);
 
@@ -537,6 +549,7 @@ private:
             else // CMP_r
             {
                 auto &source = GetSourceRegister(op_code);
+
                 auto temp = a_ - source;
                 SetAllFlags(temp);
 
@@ -545,7 +558,8 @@ private:
         }
         else if (op_code == InstructionSet::CPI)
         {
-            auto immediate = memory_map_.Read(++program_counter_);
+            auto immediate = ReadMemory(++program_counter_);
+
             auto temp = a_ - immediate;
             SetAllFlags(temp);
 
@@ -553,18 +567,17 @@ private:
         }
         else if (op_code == InstructionSet::RLC)
         {
-
             auto temp = a_ << 1;
             SetCarryFlag(temp);
-            a_ = (temp & 0xFF) | uint8_t(flags_.carry);
+            a_ = temp | uint8_t{flags_.carry};
 
             std::cout << "RLC\n";
         }
         else if (op_code == InstructionSet::RRC)
         {
-            flags_.carry = a_ & 0b1;
+            flags_.carry = (a_ & 0b1) == 1;
             uint8_t temp = a_ >> 1;
-            a_ = temp | (uint8_t(flags_.carry) << 8);
+            a_ = temp | (uint8_t{flags_.carry} << 8);
 
             std::cout << "RRC\n";
         }
@@ -573,15 +586,14 @@ private:
             auto old_carry = flags_.carry;
             auto temp = a_ << 1;
             SetCarryFlag(temp);
-            a_ = (temp & 0xFF) | uint8_t(old_carry);
+            a_ = temp | uint8_t{old_carry};
 
             std::cout << "RAL\n";
         }
         else if (op_code == InstructionSet::RAR)
         {
-            auto new_carry = a_ & 0b1;
-            uint8_t temp = a_ >> 1;
-            a_ = temp | (uint8_t(flags_.carry) << 8);
+            auto new_carry = (a_ & 0b1) == 1;
+            a_ = (a_ >> 1) | (uint8_t{flags_.carry} << 8);
             flags_.carry = new_carry;
 
             std::cout << "RAR\n";
@@ -612,11 +624,21 @@ private:
         ++program_counter_;
     }
 
+    uint8_t ReadMemory(int address)
+    {
+        return memory_.Read(narrow_cast<uint16_t>(address));
+    }
+
+    void WriteMemory(int address, int data)
+    {
+        memory_.Write(narrow_cast<uint16_t>(address), narrow_cast<uint8_t>(data));
+    }
+
     Register &GetRegister(uint8_t register_code) noexcept
     {
         assert(register_code <= 0b111 && register_code != 0b110);
 
-        switch (RegisterCode(register_code))
+        switch (RegisterCode{register_code})
         {
         case RegisterCode::A:
         {
@@ -665,9 +687,9 @@ private:
 
     RegisterPair &GetRegisterPair(uint8_t op_code) noexcept
     {
-        const auto register_pair_code = (op_code & 0b0011'0000) >> 4;
+        const auto register_pair_code = narrow_cast<uint8_t>((op_code & 0b0011'0000) >> 4);
 
-        switch (RegisterPairCode(register_pair_code))
+        switch (RegisterPairCode{register_pair_code})
         {
         case RegisterPairCode::BC:
         {
@@ -709,12 +731,12 @@ private:
 
     inline void SetZeroFlag(int temp)
     {
-        flags_.zero = (temp & 0xFF) == 0;
+        flags_.zero = narrow_cast<uint8_t>(temp) == 0;
     }
 
     inline void SetSignFlag(int temp)
     {
-        flags_.sign = (temp & 0b1000'0000) == 1;
+        flags_.sign = (temp & 0b1000'0000) != 0;
     }
 
     inline void SetParityFlag(int temp)
@@ -722,7 +744,7 @@ private:
         auto sum_of_bits = 0;
         for (int i = 0; i < 8; ++i)
         {
-            sum_of_bits += (temp & 1 << i) >> i;
+            sum_of_bits += (temp & (1 << i)) >> i;
         }
 
         flags_.parity = (sum_of_bits % 2) == 0;

@@ -20,9 +20,13 @@ public:
 
     ROM(const ROM &) = delete;
 
-    ROM(ROM &&rom) : data_(std::move(rom.data_)) {}
+    ROM(ROM &&) = delete;
 
     virtual ~ROM(){};
+
+    auto operator=(const ROM &) = delete;
+
+    auto operator=(ROM &&) = delete;
 
     std::size_t GetSize() const noexcept override
     {
@@ -43,10 +47,6 @@ public:
 
         throw std::runtime_error("Write on read only memory.");
     }
-
-    auto operator=(const ROM &) = delete;
-
-    auto operator=(ROM &&) = delete;
 
 private:
     std::vector<uint8_t> data_;

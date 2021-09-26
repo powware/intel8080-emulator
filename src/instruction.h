@@ -7,27 +7,27 @@
 class Instruction
 {
 public:
-    constexpr Instruction(const char *mask) : mask_isolater_(CreateMaskIsolater(mask, std::make_index_sequence<sizeof(mask)>{})), mask_(CreateMask(mask, std::make_index_sequence<sizeof(mask)>{}))
+    constexpr Instruction(const char *mask) noexcept : mask_isolater_(CreateMaskIsolater(mask, std::make_index_sequence<sizeof(mask)>{})), mask_(CreateMask(mask, std::make_index_sequence<sizeof(mask)>{}))
     {
         assert(std::string_view(mask).size() == 8);
     }
 
-    inline constexpr bool operator==(uint8_t data) const
+    inline constexpr bool operator==(uint8_t data) const noexcept
     {
         return (data & mask_isolater_) == mask_;
     }
 
-    inline constexpr bool operator!=(uint8_t data) const
+    inline constexpr bool operator!=(uint8_t data) const noexcept
     {
         return !(*this == data);
     }
 
-    inline friend bool operator==(uint8_t data, const Instruction &bitmask)
+    inline friend bool operator==(uint8_t data, const Instruction &bitmask) noexcept
     {
         return bitmask == data;
     }
 
-    inline friend bool operator!=(uint8_t data, const Instruction &bitmask)
+    inline friend bool operator!=(uint8_t data, const Instruction &bitmask) noexcept
     {
         return bitmask != data;
     }
@@ -37,13 +37,13 @@ private:
     const uint8_t mask_;
 
     template <std::size_t... indexes>
-    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>)
+    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) noexcept
     {
         return (((mask[indexes] == '0' || mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
     }
 
     template <std::size_t... indexes>
-    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>)
+    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) noexcept
     {
         return (((mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
     }

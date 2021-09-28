@@ -267,7 +267,7 @@ private:
             SetAllFlags(temp);
             a_ = temp;
 
-            std::cout << "ADi\n";
+            std::cout << "ADI\n";
         }
         else if (op_code == InstructionSet::ADC_r)
         {
@@ -614,6 +614,79 @@ private:
 
             std::cout << "STC\n";
         }
+        else if (op_code == InstructionSet::JMP || (op_code == InstructionSet::JC && IsConditionTrue(op_code)))
+        {
+            auto immediate_low = ReadMemory(++program_counter_);
+            auto immediate_high = ReadMemory(++program_counter_);
+            auto immediate = (immediate_high << 8) | immediate_low;
+
+            program_counter_ = immediate;
+
+            std::cout << "JMP/JC\n";
+        }
+        else if (op_code == InstructionSet::CALL || (op_code == InstructionSet::CC && IsConditionTrue(op_code)))
+        {
+            WriteMemory(stack_pointer_ - 1, program_counter_.high_);
+            WriteMemory(stack_pointer_ - 2, program_counter_.low_);
+
+            stack_pointer_ = stack_pointer_ - 2;
+
+            auto immediate_low = ReadMemory(++program_counter_);
+            auto immediate_high = ReadMemory(++program_counter_);
+            auto immediate = (immediate_high << 8) | immediate_low;
+
+            program_counter_ = immediate;
+
+            std::cout << "CALL/CC\n";
+        }
+        else if (op_code == InstructionSet::RET || (op_code == InstructionSet::RC && IsConditionTrue(op_code)))
+        {
+            program_counter_.low_ = ReadMemory(stack_pointer_);
+            program_counter_.high_ = ReadMemory(stack_pointer_ + 1);
+
+            stack_pointer_ = stack_pointer_ + 2;
+
+            std::cout << "CALL/CC\n";
+        }
+        else if (op_code == InstructionSet::RST)
+        {
+            WriteMemory(stack_pointer_ - 1, program_counter_.high_);
+            WriteMemory(stack_pointer_ - 2, program_counter_.low_);
+
+            stack_pointer_ = stack_pointer_ - 2;
+
+            program_counter_ = GetInterruptAddress(op_code);
+
+            std::cout << "RST\n";
+        }
+        else if (op_code == InstructionSet::PCHL)
+        {
+            program_counter_ = hl_;
+
+            std::cout << "PCHL\n";
+        }
+        else if (op_code == InstructionSet::PUSH_rp)
+        {
+            auto &source = GetRegisterPair(op_code);
+
+            WriteMemory(stack_pointer_ - 1, source.high_);
+            WriteMemory(stack_pointer_ - 2, source.low_);
+
+            stack_pointer_ = stack_pointer_ - 2;
+
+            std::cout << "PUSH_rp\n";
+        }
+        else if (op_code == InstructionSet::PUSH_PSW)
+        {
+            auto processor_status_word = narrow_cast<uint8_t>(uint8_t{flags_.carry} | (1 << 1) | (uint8_t{flags_.parity} << 2) | (uint8_t{flags_.auxiliary_carry} << 4) | (uint8_t{flags_.zero} << 6) | (uint8_t{flags_.sign} << 7));
+
+            WriteMemory(stack_pointer_ - 1, a_);
+            WriteMemory(stack_pointer_ - 2, processor_status_word);
+
+            stack_pointer_ = stack_pointer_ - 2;
+
+            std::cout << "PUSH_PSW\n";
+        }
         else
         {
             std::cout << "Instruction not supported\n";
@@ -712,6 +785,66 @@ private:
         std::terminate();
     }
 
+    enum class ConditionIdentifier : uint8_t
+    {
+        NZ = 0b000,
+        Z = 0b001,
+        NC = 0b010,
+        C = 0b011,
+        PO = 0b100,
+        PE = 0b101,
+        P = 0b110,
+        M = 0b111,
+    };
+
+    bool IsConditionTrue(uint8_t op_code) noexcept
+    {
+
+        auto condition_code = narrow_cast<uint8_t>((op_code & 0b0011'1000) >> 3);
+        switch (ConditionIdentifier{condition_code})
+        {
+        case ConditionIdentifier::NZ:
+        {
+            return !flags_.zero;
+        }
+        break;
+        case ConditionIdentifier::Z:
+        {
+            return flags_.zero;
+        }
+        break;
+        case ConditionIdentifier::NC:
+        {
+            return !flags_.carry;
+        }
+        case ConditionIdentifier::C:
+        {
+            return flags_.carry;
+        }
+        case ConditionIdentifier::PO:
+        {
+            return flags_.parity == false;
+        }
+        break;
+        case ConditionIdentifier::PE:
+        {
+            return flags_.parity == true;
+        }
+        break;
+        case ConditionIdentifier::P:
+        {
+            return !flags_.sign;
+        }
+        case ConditionIdentifier::M:
+        {
+            return flags_.sign;
+        }
+        break;
+        }
+
+        std::terminate();
+    }
+
     inline void SetAllFlags(int temp)
     {
         SetAllFlagsExceptCarry(temp);
@@ -757,6 +890,11 @@ private:
     {
         (void)temp;
         // not yet supported
+    }
+
+    inline uint8_t GetInterruptAddress(uint8_t op_code)
+    {
+        return op_code & 0b0011'1000;
     }
 };
 

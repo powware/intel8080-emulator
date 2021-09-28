@@ -140,15 +140,25 @@ struct InstructionSet
     static constexpr auto STC = Instruction("00110111");
 
     static constexpr auto JMP = Instruction("11000011");
+
     static constexpr auto JC = Instruction("11CCC010");
+
     static constexpr auto CALL = Instruction("11001101");
+
     static constexpr auto CC = Instruction("11CCC100");
+
     static constexpr auto RET = Instruction("11001001");
+
     static constexpr auto RC = Instruction("11CCC000");
+
     static constexpr auto RST = Instruction("11NNN111");
+
     static constexpr auto PCHL = Instruction("11101001");
+
     static constexpr auto PUSH_rp = Instruction("11RP0101");
+
     static constexpr auto PUSH_PSW = Instruction("11110101");
+
     static constexpr auto POP_rp = Instruction("11RP0001");
     static constexpr auto POP_PSW = Instruction("11110001");
     static constexpr auto XTHL = Instruction("11100011");

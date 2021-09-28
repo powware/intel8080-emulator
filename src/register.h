@@ -37,6 +37,8 @@ public:
 
     Register(Register &&) = delete;
 
+    virtual ~Register() {}
+
     auto &GetData() noexcept
     {
         return data_;
@@ -97,6 +99,8 @@ public:
     RegisterPair(const RegisterPair &) = delete;
 
     RegisterPair(RegisterPair &&) = delete;
+
+    virtual ~Register() {}
 
     auto &operator=(const RegisterPair &r) noexcept
     {

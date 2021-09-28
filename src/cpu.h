@@ -1,9 +1,9 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include <thread>
 #include <cassert>
 #include <cassert>
+#include <iostream>
 
 #include "register.h"
 #include "instruction.h"
@@ -96,8 +96,6 @@ private:
     RegisterPair program_counter_{"Program Counter"};
 
     Memory memory_;
-
-    std::thread execution_thread_;
 
     uint8_t FetchInstruction()
     {

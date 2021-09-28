@@ -3,6 +3,7 @@
 
 #include <initializer_list>
 #include <filesystem>
+#include <fstream>
 
 #include "memory_interface.h"
 

@@ -1,10 +1,4 @@
 #include <filesystem>
-#include <iostream>
-#include <vector>
-#include <fstream>
-#include <iterator>
-#include <string>
-#include <sstream>
 
 #include "cpu.h"
 

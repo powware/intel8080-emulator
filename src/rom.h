@@ -3,6 +3,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <vector>
+#include <cstdint>
 
 #include "memory_interface.h"
 #include "utilities.h"
@@ -16,7 +18,7 @@ public:
         data_.resize(file_size);
 
         std::ifstream file_stream(file_path, std::ios::binary);
-        file_stream.read(reinterpret_cast<char *>(data_.data()), file_size);
+        file_stream.read(reinterpret_cast<char *>(data_.data()), static_cast<std::streamsize>(file_size));
     }
 
     ROM(const ROM &) = delete;
@@ -29,7 +31,7 @@ public:
 
     auto operator=(ROM &&) = delete;
 
-    std::size_t GetSize() const noexcept override
+    std::size_t size() const noexcept override
     {
         return data_.size();
     }

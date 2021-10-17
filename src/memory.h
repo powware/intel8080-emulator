@@ -1,9 +1,11 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
+#include <cstdint>
 #include <vector>
 #include <tuple>
 #include <limits>
+#include <memory>
 
 #include "ram.h"
 #include "rom.h"
@@ -31,7 +33,7 @@ public:
 
             const auto &[address, memory] = mapping_.back();
 
-            return address + memory->GetSize();
+            return address + memory->size();
         }();
 
         constexpr uint16_t max_address = std::numeric_limits<uint16_t>::max();
@@ -40,13 +42,13 @@ public:
             throw std::runtime_error("Memory::AddMemory(): Attempting to create memory outside of addressable range.");
         }
 
-        mapping_.emplace_back(std::make_tuple(static_cast<uint16_t>(new_address), std::make_unique<MemoryType>(std::forward<Args>(args)...)));
+        mapping_.emplace_back(static_cast<uint16_t>(new_address), std::make_unique<MemoryType>(std::forward<Args>(args)...));
     }
 
 private:
     std::vector<std::tuple<uint16_t, std::unique_ptr<MemoryInterface>>> mapping_;
 
-    auto GetMappedMemory(uint16_t address) const;
+    std::tuple<uint16_t, MemoryInterface *> GetMappedMemory(uint16_t address) const;
 };
 
 #endif /* MEMORY_H */

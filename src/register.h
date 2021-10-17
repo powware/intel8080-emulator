@@ -1,6 +1,7 @@
 #ifndef REGISTER_H
 #define REGISTER_H
 
+#include <cstdint>
 #include <array>
 #include <string>
 #include <type_traits>

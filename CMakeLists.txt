@@ -32,6 +32,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
                                                       -Wmisleading-indentation
                                                       -Wconversion
                                                       -Wsign-conversion
+                                                      -Wstrict-aliasing=2
     )
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(intel8080-emulator PRIVATE /permissive-
@@ -62,7 +63,7 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         #target_compile_options(intel8080-emulator PRIVATE /fsanitize=address)
     endif()
 else()
-    message(FATAL_ERROR "Compiler not supported")
+    message(WARNING "No warnings specified for the chosen compiler.")
 endif()
 
 target_include_directories(intel8080-emulator PRIVATE ${PROJECT_SOURCE_DIR}/src)

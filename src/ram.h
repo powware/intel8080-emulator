@@ -1,6 +1,7 @@
 #ifndef RAM_H
 #define RAM_H
 
+#include <cstdint>
 #include <cassert>
 #include <vector>
 
@@ -21,7 +22,7 @@ public:
 
     auto operator=(RAM &&) = delete;
 
-    std::size_t GetSize() const noexcept override
+    std::size_t size() const noexcept override
     {
         return data_.size();
     }

@@ -1,9 +1,10 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include <cassert>
+#include <cstdint>
 #include <cassert>
 #include <iostream>
+#include <filesystem>
 
 #include "register.h"
 #include "instruction.h"
@@ -164,7 +165,7 @@ private:
             destination.high_ = immediate_high;
             destination.low_ = immediate_low;
 
-            std::cout << "LXI: " << destination << " <- " << int((immediate_high << 8) | immediate_low) << "\n";
+            std::cout << "LXI: " << destination << " <- " << ((immediate_high << 8) | immediate_low) << "\n";
         }
         else if (op_code == InstructionSet::LDAX)
         {
@@ -172,7 +173,7 @@ private:
             {
                 uint8_t immediate_low = ReadMemory(++program_counter_);
                 uint8_t immediate_high = ReadMemory(++program_counter_);
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
+                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 a_ = ReadMemory(immediate);
             }
@@ -180,7 +181,7 @@ private:
             {
                 uint8_t immediate_low = ReadMemory(++program_counter_);
                 uint8_t immediate_high = ReadMemory(++program_counter_);
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
+                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 l_ = ReadMemory(immediate);
                 h_ = ReadMemory(++immediate);
@@ -202,7 +203,7 @@ private:
             {
                 uint8_t immediate_low = ReadMemory(++program_counter_);
                 uint8_t immediate_high = ReadMemory(++program_counter_);
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
+                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 WriteMemory(immediate, a_);
 
@@ -212,7 +213,7 @@ private:
             {
                 uint8_t immediate_low = ReadMemory(++program_counter_);
                 uint8_t immediate_high = ReadMemory(++program_counter_);
-                uint16_t immediate = (immediate_high << 8) | immediate_low;
+                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 WriteMemory(immediate, l_);
                 WriteMemory(++immediate, h_);
@@ -575,7 +576,7 @@ private:
         {
             flags_.carry = (a_ & 0b1) == 1;
             uint8_t temp = a_ >> 1;
-            a_ = temp | (uint8_t(flags_.carry) << 8);
+            a_ = static_cast<uint8_t>(temp | (uint8_t(flags_.carry) << 8));
 
             std::cout << "RRC\n";
         }
@@ -591,7 +592,7 @@ private:
         else if (op_code == InstructionSet::RAR)
         {
             auto new_carry = (a_ & 0b1) == 1;
-            a_ = (a_ >> 1) | (uint8_t(flags_.carry) << 8);
+            a_ = static_cast<uint8_t>((a_ >> 1) | (uint8_t(flags_.carry) << 8));
             flags_.carry = new_carry;
 
             std::cout << "RAR\n";
@@ -618,7 +619,7 @@ private:
         {
             uint8_t immediate_low = ReadMemory(++program_counter_);
             uint8_t immediate_high = ReadMemory(++program_counter_);
-            uint16_t immediate = (immediate_high << 8) | immediate_low;
+            uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
             program_counter_ = immediate;
 
@@ -633,7 +634,7 @@ private:
 
             uint8_t immediate_low = ReadMemory(++program_counter_);
             uint8_t immediate_high = ReadMemory(++program_counter_);
-            uint16_t immediate = (immediate_high << 8) | immediate_low;
+            uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
             program_counter_ = immediate;
 
@@ -678,7 +679,7 @@ private:
         }
         else if (op_code == InstructionSet::PUSH_PSW)
         {
-            uint8_t processor_status_word = (uint8_t(flags_.sign) << 7) | (uint8_t(flags_.zero) << 6) | (uint8_t(flags_.auxiliary_carry) << 4) | (uint8_t(flags_.parity) << 2) | (1 << 1) | uint8_t(flags_.carry);
+            uint8_t processor_status_word = static_cast<uint8_t>((uint8_t(flags_.sign) << 7) | (uint8_t(flags_.zero) << 6) | (uint8_t(flags_.auxiliary_carry) << 4) | (uint8_t(flags_.parity) << 2) | (1 << 1) | uint8_t(flags_.carry));
 
             WriteMemory(stack_pointer_ - 1, a_);
             WriteMemory(stack_pointer_ - 2, processor_status_word);

@@ -4,11 +4,11 @@ Memory::Memory() {}
 
 Memory::~Memory() {}
 
-auto Memory::GetMappedMemory(uint16_t address) const
+std::tuple<uint16_t, MemoryInterface *> Memory::GetMappedMemory(uint16_t address) const
 {
     for (auto &[start_address, memory] : mapping_)
     {
-        if (address >= start_address && address < start_address + memory->GetSize())
+        if (address >= start_address && address < start_address + memory->size())
         {
             return std::make_tuple(address - start_address, memory.get());
         }

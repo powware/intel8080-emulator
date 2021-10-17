@@ -1,6 +1,7 @@
 #ifndef INSTRUCTION_H
 #define INSTRUCTION_H
 
+#include <cstdint>
 #include <utility>
 #include <tuple>
 #include <string_view>
@@ -40,13 +41,13 @@ private:
     template <std::size_t... indexes>
     constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
-        return (((mask[indexes] == '0' || mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
+        return static_cast<uint8_t>((((mask[indexes] == '0' || mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...));
     }
 
     template <std::size_t... indexes>
     constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
-        return (((mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
+        return static_cast<uint8_t>((((mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...));
     }
 };
 

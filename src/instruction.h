@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <tuple>
+#include <string_view>
 
 class Instruction
 {
@@ -37,13 +38,13 @@ private:
     const uint8_t mask_;
 
     template <std::size_t... indexes>
-    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) noexcept
+    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
         return (((mask[indexes] == '0' || mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
     }
 
     template <std::size_t... indexes>
-    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) noexcept
+    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
         return (((mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...);
     }

@@ -1,7 +1,5 @@
 #include "memory.h"
 
-#include "types.h"
-
 Memory::Memory() {}
 
 Memory::~Memory() {}
@@ -16,7 +14,7 @@ auto Memory::GetMappedMemory(uint16_t address) const
         }
     }
 
-    throw std::runtime_error("Address outside of addressable memory range.");
+    throw std::runtime_error("Memory::GetMappedMemory(): Address outside of addressable memory range.");
 }
 
 uint8_t Memory::Read(uint16_t address) const

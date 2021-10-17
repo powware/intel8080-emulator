@@ -22,13 +22,25 @@ public:
     template <class MemoryType, typename... Args>
     void AddMemory(Args &&...args)
     {
-        const auto address = mapping_.size() ? std::get<0>(mapping_.back()) + std::get<1>(mapping_.back())->GetSize() : 0;
-        if (address > std::numeric_limits<uint16_t>::max())
+        const auto new_address = [&]() -> std::size_t
         {
-            throw std::runtime_error("Trying to add memory which would not be addressable.");
+            if (mapping_.size() == 0)
+            {
+                return 0;
+            }
+
+            const auto &[address, memory] = mapping_.back();
+
+            return address + memory->GetSize();
+        }();
+
+        constexpr uint16_t max_address = std::numeric_limits<uint16_t>::max();
+        if (new_address > max_address)
+        {
+            throw std::runtime_error("Memory::AddMemory(): Attempting to create memory outside of addressable range.");
         }
 
-        mapping_.emplace_back(std::make_tuple(static_cast<uint16_t>(address), std::make_unique<MemoryType>(std::forward<Args>(args)...)));
+        mapping_.emplace_back(std::make_tuple(static_cast<uint16_t>(new_address), std::make_unique<MemoryType>(std::forward<Args>(args)...)));
     }
 
 private:

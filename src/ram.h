@@ -26,14 +26,14 @@ public:
         return data_.size();
     }
 
-    uint8_t Read(std::size_t index) const override
+    uint8_t Read(std::size_t index) const noexcept override
     {
         assert(index < data_.size());
 
         return data_[index];
     }
 
-    void Write(std::size_t index, uint8_t data) override
+    void Write(std::size_t index, uint8_t data) noexcept override
     {
         assert(index < data_.size());
 

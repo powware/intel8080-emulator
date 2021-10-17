@@ -1,5 +1,5 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef UTILITIES_H
+#define UTILITIES_H
 
 #include <type_traits>
 
@@ -21,4 +21,7 @@ constexpr auto narrow(FromType from)
     return static_cast<ToType>(from & static_cast<typename std::make_unsigned<ToType>::type>(-1));
 }
 
-#endif /* TYPES_H */
+template <typename... Args>
+inline void unused(Args &&...) {}
+
+#endif /* UTILITIES_H */

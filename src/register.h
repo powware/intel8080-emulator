@@ -5,8 +5,6 @@
 #include <string>
 #include <type_traits>
 
-#include "types.h"
-
 enum class RegisterCode : uint8_t
 {
     A = 0b111,
@@ -53,14 +51,17 @@ public:
 
     auto &operator=(Register &&r) = delete;
 
-    auto &operator=(const int &value) noexcept
+    auto &operator=(uint8_t value) noexcept
     {
-        data_ = narrow_cast<uint8_t>(value);
+        data_ = value;
 
         return *this;
     }
 
-    auto &operator++(int) = delete;
+    auto operator++(int)
+    {
+        return data_;
+    }
 
     operator uint8_t() const noexcept
     {
@@ -100,7 +101,7 @@ public:
 
     RegisterPair(RegisterPair &&) = delete;
 
-    virtual ~Register() {}
+    virtual ~RegisterPair() {}
 
     auto &operator=(const RegisterPair &r) noexcept
     {
@@ -111,9 +112,9 @@ public:
 
     auto &operator=(RegisterPair &&) = delete;
 
-    auto &operator=(int value) noexcept
+    auto &operator=(uint16_t value) noexcept
     {
-        data_ = narrow_cast<uint16_t>(value);
+        data_ = value;
 
         return *this;
     }
@@ -125,7 +126,10 @@ public:
         return *this;
     }
 
-    auto &operator++(int) = delete;
+    auto operator++(int)
+    {
+        return data_;
+    }
 
     operator uint16_t() const noexcept
     {

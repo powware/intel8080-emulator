@@ -13,7 +13,7 @@ public:
     ROM(const std::filesystem::path &file_path)
     {
         const auto file_size = std::filesystem::file_size(file_path);
-        data_.reserve(file_size);
+        data_.resize(file_size);
 
         std::ifstream file_stream(file_path, std::ios::binary);
         file_stream.read(reinterpret_cast<char *>(data_.data()), file_size);

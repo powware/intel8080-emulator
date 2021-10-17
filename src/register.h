@@ -58,9 +58,19 @@ public:
         return *this;
     }
 
-    auto operator++(int)
+    auto &operator++() noexcept
     {
-        return data_;
+        ++data_;
+
+        return *this;
+    }
+
+    auto operator++(int) noexcept
+    {
+        auto temp = data_;
+        ++data_;
+
+        return temp;
     }
 
     operator uint8_t() const noexcept
@@ -126,9 +136,12 @@ public:
         return *this;
     }
 
-    auto operator++(int)
+    auto operator++(int) noexcept
     {
-        return data_;
+        auto temp = data_;
+        ++data_;
+
+        return temp;
     }
 
     operator uint16_t() const noexcept

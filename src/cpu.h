@@ -141,7 +141,7 @@ private:
         {
             if (op_code == InstructionSet::MVI_M)
             {
-                uint8_t immediate = ReadMemory(++program_counter_);
+                uint8_t immediate = ReadMemory(program_counter_++);
 
                 WriteMemory(hl_, immediate);
 
@@ -149,8 +149,8 @@ private:
             }
             else // MVI_r
             {
-                uint8_t immediate = ReadMemory(++program_counter_);
                 auto &destination = GetDestinationRegister(op_code);
+                uint8_t immediate = ReadMemory(program_counter_++);
                 destination = immediate;
 
                 std::cout << "MIV_r: " << destination << " <- " << int(immediate) << "\n";
@@ -159,8 +159,8 @@ private:
         else if (op_code == InstructionSet::LXI)
         {
             auto &destination = GetRegisterPair(op_code);
-            uint8_t immediate_low = ReadMemory(++program_counter_);
-            uint8_t immediate_high = ReadMemory(++program_counter_);
+            uint8_t immediate_low = ReadMemory(program_counter_++);
+            uint8_t immediate_high = ReadMemory(program_counter_++);
 
             destination.high_ = immediate_high;
             destination.low_ = immediate_low;
@@ -171,16 +171,16 @@ private:
         {
             if (op_code == InstructionSet::LDA)
             {
-                uint8_t immediate_low = ReadMemory(++program_counter_);
-                uint8_t immediate_high = ReadMemory(++program_counter_);
+                uint8_t immediate_low = ReadMemory(program_counter_++);
+                uint8_t immediate_high = ReadMemory(program_counter_++);
                 uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 a_ = ReadMemory(immediate);
             }
             else if (op_code == InstructionSet::LHLD)
             {
-                uint8_t immediate_low = ReadMemory(++program_counter_);
-                uint8_t immediate_high = ReadMemory(++program_counter_);
+                uint8_t immediate_low = ReadMemory(program_counter_++);
+                uint8_t immediate_high = ReadMemory(program_counter_++);
                 uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 l_ = ReadMemory(immediate);
@@ -201,8 +201,8 @@ private:
         {
             if (op_code == InstructionSet::STA)
             {
-                uint8_t immediate_low = ReadMemory(++program_counter_);
-                uint8_t immediate_high = ReadMemory(++program_counter_);
+                uint8_t immediate_low = ReadMemory(program_counter_++);
+                uint8_t immediate_high = ReadMemory(program_counter_++);
                 uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 WriteMemory(immediate, a_);
@@ -211,8 +211,8 @@ private:
             }
             else if (op_code == InstructionSet::SHLD)
             {
-                uint8_t immediate_low = ReadMemory(++program_counter_);
-                uint8_t immediate_high = ReadMemory(++program_counter_);
+                uint8_t immediate_low = ReadMemory(program_counter_++);
+                uint8_t immediate_high = ReadMemory(program_counter_++);
                 uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
                 WriteMemory(immediate, l_);
@@ -261,7 +261,7 @@ private:
         }
         else if (op_code == InstructionSet::ADI)
         {
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             auto temp = a_ + immediate;
             SetAllFlags(temp);
@@ -295,7 +295,7 @@ private:
         else if (op_code == InstructionSet::ACI)
         {
 
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             auto temp = a_ + immediate + uint8_t(flags_.carry);
             SetAllFlags(temp);
@@ -329,7 +329,7 @@ private:
         else if (op_code == InstructionSet::SUI)
         {
 
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             auto temp = a_ - immediate;
             SetAllFlags(temp);
@@ -363,7 +363,7 @@ private:
         else if (op_code == InstructionSet::SBI)
         {
 
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             auto temp = a_ - immediate - flags_.carry;
             SetAllFlags(temp);
@@ -471,7 +471,7 @@ private:
         }
         else if (op_code == InstructionSet::ANI)
         {
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             a_ = a_ & immediate;
             SetAllFlags(a_);
@@ -499,7 +499,7 @@ private:
         }
         else if (op_code == InstructionSet::XRI)
         {
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             a_ = a_ ^ immediate;
             SetAllFlags(a_);
@@ -527,7 +527,7 @@ private:
         }
         else if (op_code == InstructionSet::ORI)
         {
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             a_ = a_ | immediate;
             SetAllFlags(a_);
@@ -557,7 +557,7 @@ private:
         }
         else if (op_code == InstructionSet::CPI)
         {
-            uint8_t immediate = ReadMemory(++program_counter_);
+            uint8_t immediate = ReadMemory(program_counter_++);
 
             auto temp = a_ - immediate;
             SetAllFlags(temp);
@@ -617,8 +617,8 @@ private:
         }
         else if (op_code == InstructionSet::JMP || (op_code == InstructionSet::JC && IsConditionTrue(op_code)))
         {
-            uint8_t immediate_low = ReadMemory(++program_counter_);
-            uint8_t immediate_high = ReadMemory(++program_counter_);
+            uint8_t immediate_low = ReadMemory(program_counter_++);
+            uint8_t immediate_high = ReadMemory(program_counter_++);
             uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
             program_counter_ = immediate;
@@ -632,8 +632,8 @@ private:
 
             stack_pointer_ = stack_pointer_ - 2;
 
-            uint8_t immediate_low = ReadMemory(++program_counter_);
-            uint8_t immediate_high = ReadMemory(++program_counter_);
+            uint8_t immediate_low = ReadMemory(program_counter_++);
+            uint8_t immediate_high = ReadMemory(program_counter_++);
             uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
 
             program_counter_ = immediate;

@@ -101,12 +101,18 @@ private:
 class RegisterPair final
 {
 public:
-    Register high_;
     Register low_;
+    Register high_;
 
-    RegisterPair(std::string name) noexcept : high_(reinterpret_cast<uint8_t *>(&data_)[0], name + "_high"), low_(reinterpret_cast<uint8_t *>(&data_)[1], name + "_low"), name_(name) {}
+    RegisterPair(std::string high_name, std::string low_name) noexcept : low_(reinterpret_cast<uint8_t *>(&data_)[0], low_name), high_(reinterpret_cast<uint8_t *>(&data_)[1], high_name)
+    {
+        name_ = high_name + low_name;
+    }
 
-    RegisterPair(std::string high_name, std::string low_name) noexcept : high_(reinterpret_cast<uint8_t *>(&data_)[0], high_name), low_(reinterpret_cast<uint8_t *>(&data_)[1], low_name), name_(high_name + low_name) {}
+    RegisterPair(std::string name) noexcept : RegisterPair(name + "_low", name + "_high")
+    {
+        name_ = name;
+    }
 
     RegisterPair(const RegisterPair &) = delete;
 
@@ -157,7 +163,7 @@ public:
 
 private:
     uint16_t data_{0};
-    const std::string name_;
+    std::string name_;
 };
 
 #endif /* REGISTER_H */

@@ -158,16 +158,23 @@ struct InstructionSet
     static constexpr auto PCHL = Instruction("11101001");
 
     static constexpr auto PUSH_rp = Instruction("11RP0101");
-
     static constexpr auto PUSH_PSW = Instruction("11110101");
 
     static constexpr auto POP_rp = Instruction("11RP0001");
     static constexpr auto POP_PSW = Instruction("11110001");
+
     static constexpr auto XTHL = Instruction("11100011");
+
+    static constexpr auto SPHL = Instruction("11111001");
+
     static constexpr auto IN = Instruction("11011101");
+
     static constexpr auto OUT = Instruction("11010011");
+
     static constexpr auto EI = Instruction("11111011");
+
     static constexpr auto DI = Instruction("11110011");
+
     static constexpr auto NOP = Instruction("00000000");
 };
 

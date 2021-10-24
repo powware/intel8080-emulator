@@ -10,6 +10,10 @@ add_executable(intel8080-emulator ${PROJECT_SOURCE_DIR}/src/main.cpp
                                   ${PROJECT_SOURCE_DIR}/src/memory.cpp
 )
 
+if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
+    target_compile_DEFINITIONS(intel8080-emulator PRIVATE DEBUG)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(intel8080-emulator PRIVATE -Wall
                                                       -Wextra
@@ -67,3 +71,13 @@ else()
 endif()
 
 target_include_directories(intel8080-emulator PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+######################
+# SFML CONFIGURATION #
+######################
+
+set(SFML_STATIC_LIBRARIES true)
+
+find_package(SFML 2.5 COMPONENTS graphics REQUIRED)
+
+target_link_libraries(intel8080-emulator PRIVATE sfml-graphics)

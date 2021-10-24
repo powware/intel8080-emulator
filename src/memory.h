@@ -24,7 +24,7 @@ public:
     template <class MemoryType, typename... Args>
     void AddMemory(Args &&...args)
     {
-        const auto new_address = [&]() -> std::size_t
+        const std::size_t new_address = [&]() -> std::size_t
         {
             if (mapping_.size() == 0)
             {
@@ -36,8 +36,8 @@ public:
             return address + memory->size();
         }();
 
-        constexpr uint16_t max_address = std::numeric_limits<uint16_t>::max();
-        if (new_address > max_address)
+        constexpr uint16_t kMaxAddress = std::numeric_limits<uint16_t>::max();
+        if (new_address > kMaxAddress)
         {
             throw std::runtime_error("Memory::AddMemory(): Attempting to create memory outside of addressable range.");
         }

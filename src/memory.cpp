@@ -10,7 +10,7 @@ std::tuple<uint16_t, MemoryInterface *> Memory::GetMappedMemory(uint16_t address
     {
         if (address >= start_address && address < start_address + memory->size())
         {
-            return std::make_tuple(address - start_address, memory.get());
+            return std::make_tuple(static_cast<uint16_t>(address - start_address), memory.get());
         }
     }
 
@@ -19,7 +19,7 @@ std::tuple<uint16_t, MemoryInterface *> Memory::GetMappedMemory(uint16_t address
 
 uint8_t Memory::Read(uint16_t address) const
 {
-    auto [relative_address, memory] = GetMappedMemory(address);
+    const auto [relative_address, memory] = GetMappedMemory(address);
 
     return memory->Read(relative_address);
 }

@@ -5,6 +5,7 @@
 #include <array>
 #include <string>
 #include <type_traits>
+#include <format>
 
 enum class RegisterCode : uint8_t
 {
@@ -79,6 +80,11 @@ public:
         return data_;
     }
 
+    operator std::string() const noexcept
+    {
+        return name_ + "(" + std::to_string(int(data_)) + ")";
+    }
+
     friend inline void swap(Register &r1, Register &r2) noexcept
     {
         uint8_t temp = r1;
@@ -89,7 +95,7 @@ public:
     friend inline auto &
     operator<<(std::ostream &os, const Register &r)
     {
-        return os << r.name_ << "(" << int{r.data_} << ")";
+        return os << static_cast<std::string>(r);
     }
 
 private:
@@ -156,9 +162,14 @@ public:
         return data_;
     }
 
+    operator std::string() const noexcept
+    {
+        return name_ + "(" + std::to_string(int(data_)) + ")";
+    }
+
     friend auto &operator<<(std::ostream &os, const RegisterPair &r)
     {
-        return os << r.name_ << "(" << int{r.data_} << ")";
+        return os << static_cast<std::string>(r);
     }
 
 private:

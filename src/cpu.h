@@ -5,13 +5,16 @@
 #include <cassert>
 #include <iostream>
 #include <filesystem>
+#include <atomic>
+#include <thread>
+#include <format>
 
 #include "register.h"
 #include "instruction.h"
-
 #include "ram.h"
 #include "rom.h"
 #include "memory.h"
+#include "logger.h"
 
 //void HexDump(const Memory &memory)
 //{
@@ -36,6 +39,8 @@
 //    }
 //}
 
+using namespace std::chrono_literals;
+
 class CPU final
 {
 public:
@@ -53,30 +58,55 @@ public:
         memory_.AddMemory<RAM>(size);
     }
 
-    void StartExecution() noexcept
+    void Start() noexcept
     {
-        try
+        if (execution_thread_running_)
         {
-            while (true)
-            {
-                uint8_t op_code = FetchInstruction();
-                ExecuteInstruction(op_code);
-            }
+            execution_thread_running_ = false;
+            execution_thread_.join();
         }
-        catch (std::runtime_error &exception)
-        {
-            std::cout << exception.what() << "\n";
-        }
+
+        execution_thread_running_ = true;
+        execution_thread_ = std::thread([this]() noexcept
+                                        {
+                                            try
+                                            {
+                                                while (execution_thread_running_)
+                                                {
+                                                    uint8_t op_code = FetchInstruction();
+                                                    ExecuteInstruction(op_code);
+
+                                                    //std::this_thread::sleep_for(1ms);
+                                                }
+                                            }
+                                            catch (std::runtime_error &exception)
+                                            {
+                                                std::cout << "CPU::execution_thread_: " << exception.what() << "\n";
+
+                                                execution_thread_running_ = false;
+                                            }
+                                        });
+    }
+
+    void Stop() noexcept
+    {
+        execution_thread_running_ = false;
+        execution_thread_.join();
+    }
+
+    bool IsRunning() const noexcept
+    {
+        return execution_thread_running_ || execution_thread_.joinable();
     }
 
 private:
     struct
     {
+        bool carry;
+        bool parity;
+        bool auxiliary_carry;
         bool zero;
         bool sign;
-        bool parity;
-        bool carry;
-        bool auxiliary_carry;
     } flags_;
 
     Register a_{"A"};
@@ -98,18 +128,23 @@ private:
 
     Memory memory_;
 
-    uint8_t FetchInstruction()
+    std::atomic<bool> execution_thread_running_{false};
+    std::thread execution_thread_;
+
+    inline uint8_t FetchInstruction()
     {
         return ReadMemory(program_counter_++);
     }
 
     void ExecuteInstruction(uint8_t op_code)
     {
+        Logger::Log("0x{h}: ", op_code);
+
         if (op_code == InstructionSet::MOV_r1_r2)
         {
             if (op_code == InstructionSet::HLT)
             {
-                std::cout << "HLT\n";
+                Logger::Log("HLT\n");
             }
             if (op_code == InstructionSet::MOV_r_M)
             {
@@ -117,7 +152,7 @@ private:
 
                 destination = ReadMemory(hl_);
 
-                std::cout << "MOV_r_M: " << destination << " <- (" << hl_ << ")\n";
+                Logger::Log("MOV_r_M: {} <- ({})\n", destination, hl_);
             }
             else if (op_code == InstructionSet::MOV_M_r)
             {
@@ -125,7 +160,7 @@ private:
 
                 WriteMemory(hl_, source);
 
-                std::cout << "MOV_M_r: (" << hl_ << ") <- " << source << "\n";
+                Logger::Log("MOV_r_M: {} <- ({})\n", hl_, source);
             }
             else // MOV_r1_r2
             {
@@ -134,7 +169,7 @@ private:
 
                 destination = source;
 
-                std::cout << "MOV_r1_r2: " << destination << " <- " << source << "\n";
+                Logger::Log("MOV_r1_r2: {} <- {}\n", destination, source);
             }
         }
         else if (op_code == InstructionSet::MVI_r)
@@ -145,7 +180,7 @@ private:
 
                 WriteMemory(hl_, immediate);
 
-                std::cout << "MVI_M: (" << hl_ << ") <- " << int(immediate) << "\n";
+                Logger::Log("MVI_M: ({}) <- {}\n", hl_, int(immediate));
             }
             else // MVI_r
             {
@@ -439,7 +474,7 @@ private:
             auto &source = GetRegisterPair(op_code);
 
             auto temp = hl_ + source;
-            flags_.carry = temp > 0xFFFF;
+            SetCarryFlag(temp);
             hl_ = static_cast<uint16_t>(temp);
 
             std::cout << "DAD\n";
@@ -615,7 +650,7 @@ private:
 
             std::cout << "STC\n";
         }
-        else if (op_code == InstructionSet::JMP || (op_code == InstructionSet::JC && IsConditionTrue(op_code)))
+        else if (op_code == InstructionSet::JMP || (op_code == InstructionSet::JC && CheckCondition(op_code)))
         {
             uint8_t immediate_low = ReadMemory(program_counter_++);
             uint8_t immediate_high = ReadMemory(program_counter_++);
@@ -625,7 +660,7 @@ private:
 
             std::cout << "JMP/JC\n";
         }
-        else if (op_code == InstructionSet::CALL || (op_code == InstructionSet::CC && IsConditionTrue(op_code)))
+        else if (op_code == InstructionSet::CALL || (op_code == InstructionSet::CC && CheckCondition(op_code)))
         {
             WriteMemory(stack_pointer_ - 1, program_counter_.high_);
             WriteMemory(stack_pointer_ - 2, program_counter_.low_);
@@ -640,7 +675,7 @@ private:
 
             std::cout << "CALL/CC\n";
         }
-        else if (op_code == InstructionSet::RET || (op_code == InstructionSet::RC && IsConditionTrue(op_code)))
+        else if (op_code == InstructionSet::RET || (op_code == InstructionSet::RC && CheckCondition(op_code)))
         {
             program_counter_.low_ = ReadMemory(stack_pointer_);
             program_counter_.high_ = ReadMemory(stack_pointer_ + 1);
@@ -679,10 +714,10 @@ private:
         }
         else if (op_code == InstructionSet::PUSH_PSW)
         {
-            uint8_t processor_status_word = static_cast<uint8_t>((uint8_t(flags_.sign) << 7) | (uint8_t(flags_.zero) << 6) | (uint8_t(flags_.auxiliary_carry) << 4) | (uint8_t(flags_.parity) << 2) | (1 << 1) | uint8_t(flags_.carry));
+            uint8_t status = static_cast<uint8_t>((uint8_t(flags_.sign) << 7) | (uint8_t(flags_.zero) << 6) | (uint8_t(flags_.auxiliary_carry) << 4) | (uint8_t(flags_.parity) << 2) | (1 << 1) | uint8_t(flags_.carry));
 
             WriteMemory(stack_pointer_ - 1, a_);
-            WriteMemory(stack_pointer_ - 2, processor_status_word);
+            WriteMemory(stack_pointer_ - 2, status);
 
             stack_pointer_ = stack_pointer_ - 2;
 
@@ -697,11 +732,60 @@ private:
 
             stack_pointer_ = stack_pointer_ + 2;
 
-            std::cout << "PUSH_PSW\n";
+            std::cout << "POP_rp\n";
         }
-        else
+        else if (op_code == InstructionSet::POP_PSW)
         {
-            std::cout << "Instruction not supported\n";
+            a_ = ReadMemory(stack_pointer_ + 1);
+            uint8_t status = ReadMemory(stack_pointer_ + 2);
+
+            stack_pointer_ = stack_pointer_ + 2;
+
+            flags_.carry = status & 0b0000'0001;
+            flags_.parity = status & 0b0000'0100;
+            flags_.auxiliary_carry = status & 0b0000'1000;
+            flags_.zero = status & 0b0100'0000;
+            flags_.sign = status & 0b1000'0000;
+
+            std::cout << "POP_PSW\n";
+        }
+        else if (op_code == InstructionSet::XTHL)
+        {
+            uint8_t temp = l_;
+            l_ = ReadMemory(stack_pointer_ + 1);
+            WriteMemory(stack_pointer_ + 1, temp);
+
+            temp = h_;
+            h_ = ReadMemory(stack_pointer_ + 2);
+            WriteMemory(stack_pointer_ + 2, temp);
+
+            std::cout << "XTHL\n";
+        }
+        else if (op_code == InstructionSet::SPHL)
+        {
+            stack_pointer_ = hl_;
+
+            std::cout << "SPHL\n";
+        }
+        else if (op_code == InstructionSet::IN)
+        {
+            std::cout << "IN\n";
+        }
+        else if (op_code == InstructionSet::OUT)
+        {
+            std::cout << "OUT\n";
+        }
+        else if (op_code == InstructionSet::EI)
+        {
+            std::cout << "EI\n";
+        }
+        else if (op_code == InstructionSet::DI)
+        {
+            std::cout << "DI\n";
+        }
+        else if (op_code == InstructionSet::NOP)
+        {
+            std::cout << "NOP\n";
         }
     }
 
@@ -805,7 +889,7 @@ private:
         M = 0b111,
     };
 
-    bool IsConditionTrue(uint8_t op_code) noexcept
+    bool CheckCondition(uint8_t op_code) noexcept
     {
         switch (ConditionIdentifier((op_code & 0b0011'1000) >> 3))
         {
@@ -894,7 +978,7 @@ private:
 
     inline void SetAuxiliaryCarryFlag(int temp)
     {
-        (void)temp;
+        unused(temp);
         // not yet supported
     }
 

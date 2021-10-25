@@ -48,7 +48,9 @@ public:
 private:
     std::vector<std::tuple<uint16_t, std::unique_ptr<MemoryInterface>>> mapping_;
 
-    std::tuple<uint16_t, MemoryInterface *> GetMappedMemory(uint16_t address) const;
+    std::tuple<uint16_t, const MemoryInterface &> GetMappedMemory(uint16_t address) const;
+
+    std::tuple<uint16_t, MemoryInterface &> GetMappedMemory(uint16_t address);
 };
 
 #endif /* MEMORY_H */

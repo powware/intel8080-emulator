@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <atomic>
 #include <thread>
-#include <format>
 
 #include "register.h"
 #include "instruction.h"

@@ -5,7 +5,6 @@
 #include <array>
 #include <string>
 #include <type_traits>
-#include <format>
 
 enum class RegisterCode : uint8_t
 {

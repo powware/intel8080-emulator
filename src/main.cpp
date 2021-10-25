@@ -45,6 +45,10 @@ int main()
                 window.close();
             }
             break;
+            default:
+            {
+            }
+            break;
             }
         }
     }

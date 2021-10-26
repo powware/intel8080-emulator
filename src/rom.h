@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include <cassert>
 
 #include "memory_interface.h"
 #include "utilities.h"

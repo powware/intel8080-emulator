@@ -7,8 +7,9 @@
 #include <limits>
 #include <memory>
 
-#include "ram.h"
 #include "rom.h"
+#include "ram.h"
+#include "vram.h"
 
 class Memory final
 {
@@ -22,6 +23,7 @@ public:
     void Write(uint16_t address, uint8_t data);
 
     template <class MemoryType, typename... Args>
+    requires std::is_base_of_v<MemoryInterface, MemoryType>
     void AddMemory(Args &&...args)
     {
         const std::size_t new_address = [&]() -> std::size_t

@@ -47,55 +47,34 @@ public:
 
     virtual ~CPU() {}
 
-    void AddROM(const std::filesystem::path &path)
+    template <typename MemoryType, typename... Args>
+    requires std::is_base_of_v<MemoryInterface, MemoryType>
+    void AddMemory(Args &&...args)
     {
-        memory_.AddMemory<ROM>(path);
+        memory_.AddMemory<MemoryType>(std::forward<Args>(args)...);
     }
 
-    void AddRAM(std::size_t size)
+    bool Run() noexcept
     {
-        memory_.AddMemory<RAM>(size);
-    }
 
-    void Start() noexcept
-    {
-        if (execution_thread_running_)
+        try
         {
-            execution_thread_running_ = false;
-            execution_thread_.join();
+            while (true)
+            {
+                uint8_t op_code = FetchInstruction();
+                ExecuteInstruction(op_code);
+
+                std::this_thread::sleep_for(1ms);
+            }
+        }
+        catch (std::runtime_error &exception)
+        {
+            std::cout << "CPU::Run(): " << exception.what() << "\n";
+
+            return false;
         }
 
-        execution_thread_running_ = true;
-        execution_thread_ = std::thread([this]() noexcept
-                                        {
-                                            try
-                                            {
-                                                while (execution_thread_running_)
-                                                {
-                                                    uint8_t op_code = FetchInstruction();
-                                                    ExecuteInstruction(op_code);
-
-                                                    //std::this_thread::sleep_for(1ms);
-                                                }
-                                            }
-                                            catch (std::runtime_error &exception)
-                                            {
-                                                std::cout << "CPU::execution_thread_: " << exception.what() << "\n";
-
-                                                execution_thread_running_ = false;
-                                            }
-                                        });
-    }
-
-    void Stop() noexcept
-    {
-        execution_thread_running_ = false;
-        execution_thread_.join();
-    }
-
-    bool IsRunning() const noexcept
-    {
-        return execution_thread_running_ || execution_thread_.joinable();
+        return true;
     }
 
 private:
@@ -126,9 +105,6 @@ private:
     RegisterPair program_counter_{"Program Counter"};
 
     Memory memory_;
-
-    std::atomic<bool> execution_thread_running_{false};
-    std::thread execution_thread_;
 
     inline uint8_t FetchInstruction()
     {

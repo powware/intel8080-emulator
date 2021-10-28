@@ -456,7 +456,7 @@ private:
         }
         else if (op_code == InstructionSet::DAA)
         {
-            std::cout << "DAA not supported\n";
+            throw std::runtime_error("DAA");
         }
         else if (op_code == InstructionSet::ANA_r)
         {

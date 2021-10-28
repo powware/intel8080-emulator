@@ -64,7 +64,7 @@ public:
                 uint8_t op_code = FetchInstruction();
                 ExecuteInstruction(op_code);
 
-                std::this_thread::sleep_for(1ms);
+                //std::this_thread::sleep_for(1ms);
             }
         }
         catch (std::runtime_error &exception)
@@ -151,7 +151,7 @@ private:
         {
             if (op_code == InstructionSet::MVI_M)
             {
-                uint8_t immediate = ReadMemory(program_counter_++);
+                uint8_t immediate = ReadImmediate();
 
                 WriteMemory(hl_, immediate);
 
@@ -160,7 +160,7 @@ private:
             else // MVI_r
             {
                 auto &destination = GetDestinationRegister(op_code);
-                uint8_t immediate = ReadMemory(program_counter_++);
+                uint8_t immediate = ReadImmediate();
                 destination = immediate;
 
                 std::cout << "MIV_r: " << destination << " <- " << int(immediate) << "\n";
@@ -169,29 +169,21 @@ private:
         else if (op_code == InstructionSet::LXI)
         {
             auto &destination = GetRegisterPair(op_code);
-            uint8_t immediate_low = ReadMemory(program_counter_++);
-            uint8_t immediate_high = ReadMemory(program_counter_++);
+            destination = ReadImmediate16();
 
-            destination.high_ = immediate_high;
-            destination.low_ = immediate_low;
-
-            std::cout << "LXI: " << destination << " <- " << ((immediate_high << 8) | immediate_low) << "\n";
+            std::cout << "LXI\n";
         }
         else if (op_code == InstructionSet::LDAX)
         {
             if (op_code == InstructionSet::LDA)
             {
-                uint8_t immediate_low = ReadMemory(program_counter_++);
-                uint8_t immediate_high = ReadMemory(program_counter_++);
-                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
+                uint16_t immediate = ReadImmediate16();
 
                 a_ = ReadMemory(immediate);
             }
             else if (op_code == InstructionSet::LHLD)
             {
-                uint8_t immediate_low = ReadMemory(program_counter_++);
-                uint8_t immediate_high = ReadMemory(program_counter_++);
-                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
+                uint16_t immediate = ReadImmediate16();
 
                 l_ = ReadMemory(immediate);
                 h_ = ReadMemory(++immediate);
@@ -211,9 +203,7 @@ private:
         {
             if (op_code == InstructionSet::STA)
             {
-                uint8_t immediate_low = ReadMemory(program_counter_++);
-                uint8_t immediate_high = ReadMemory(program_counter_++);
-                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
+                uint16_t immediate = ReadImmediate16();
 
                 WriteMemory(immediate, a_);
 
@@ -221,9 +211,7 @@ private:
             }
             else if (op_code == InstructionSet::SHLD)
             {
-                uint8_t immediate_low = ReadMemory(program_counter_++);
-                uint8_t immediate_high = ReadMemory(program_counter_++);
-                uint16_t immediate = static_cast<uint16_t>((immediate_high << 8) | immediate_low);
+                uint16_t immediate = ReadImmediate16();
 
                 WriteMemory(immediate, l_);
                 WriteMemory(++immediate, h_);
@@ -637,10 +625,7 @@ private:
         }
         else if (op_code == InstructionSet::CALL || (op_code == InstructionSet::CC && CheckCondition(op_code)))
         {
-            WriteMemory(stack_pointer_ - 1, program_counter_.high_);
-            WriteMemory(stack_pointer_ - 2, program_counter_.low_);
-
-            stack_pointer_ = stack_pointer_ - 2;
+            Push(program_counter_);
 
             uint8_t immediate_low = ReadMemory(program_counter_++);
             uint8_t immediate_high = ReadMemory(program_counter_++);
@@ -652,19 +637,13 @@ private:
         }
         else if (op_code == InstructionSet::RET || (op_code == InstructionSet::RC && CheckCondition(op_code)))
         {
-            program_counter_.low_ = ReadMemory(stack_pointer_);
-            program_counter_.high_ = ReadMemory(stack_pointer_ + 1);
-
-            stack_pointer_ = stack_pointer_ + 2;
+            Pop(program_counter_);
 
             std::cout << "CALL/CC\n";
         }
         else if (op_code == InstructionSet::RST)
         {
-            WriteMemory(stack_pointer_ - 1, program_counter_.high_);
-            WriteMemory(stack_pointer_ - 2, program_counter_.low_);
-
-            stack_pointer_ = stack_pointer_ - 2;
+            Push(program_counter_);
 
             program_counter_ = GetInterruptAddress(op_code);
 
@@ -679,42 +658,28 @@ private:
         else if (op_code == InstructionSet::PUSH_rp)
         {
             auto &source = GetRegisterPair(op_code);
-
-            WriteMemory(stack_pointer_ - 1, source.high_);
-            WriteMemory(stack_pointer_ - 2, source.low_);
-
-            stack_pointer_ = stack_pointer_ - 2;
+            Push(source);
 
             std::cout << "PUSH_rp\n";
         }
         else if (op_code == InstructionSet::PUSH_PSW)
         {
             uint8_t status = static_cast<uint8_t>((uint8_t(flags_.sign) << 7) | (uint8_t(flags_.zero) << 6) | (uint8_t(flags_.auxiliary_carry) << 4) | (uint8_t(flags_.parity) << 2) | (1 << 1) | uint8_t(flags_.carry));
-
-            WriteMemory(stack_pointer_ - 1, a_);
-            WriteMemory(stack_pointer_ - 2, status);
-
-            stack_pointer_ = stack_pointer_ - 2;
+            Push(a_, status);
 
             std::cout << "PUSH_PSW\n";
         }
         else if (op_code == InstructionSet::POP_rp)
         {
             auto &destination = GetRegisterPair(op_code);
-
-            destination.low_ = ReadMemory(stack_pointer_ + 1);
-            destination.high_ = ReadMemory(stack_pointer_ + 2);
-
-            stack_pointer_ = stack_pointer_ + 2;
+            Pop(destination);
 
             std::cout << "POP_rp\n";
         }
         else if (op_code == InstructionSet::POP_PSW)
         {
-            a_ = ReadMemory(stack_pointer_ + 1);
-            uint8_t status = ReadMemory(stack_pointer_ + 2);
-
-            stack_pointer_ = stack_pointer_ + 2;
+            uint8_t status;
+            Pop(a_, status);
 
             flags_.carry = status & 0b0000'0001;
             flags_.parity = status & 0b0000'0100;
@@ -726,13 +691,10 @@ private:
         }
         else if (op_code == InstructionSet::XTHL)
         {
-            uint8_t temp = l_;
-            l_ = ReadMemory(stack_pointer_ + 1);
-            WriteMemory(stack_pointer_ + 1, temp);
-
-            temp = h_;
-            h_ = ReadMemory(stack_pointer_ + 2);
-            WriteMemory(stack_pointer_ + 2, temp);
+            RegisterPair temp("temp");
+            temp = hl_;
+            Pop(hl_);
+            Push(temp);
 
             std::cout << "XTHL\n";
         }
@@ -764,14 +726,36 @@ private:
         }
     }
 
-    uint8_t ReadMemory(uint16_t address)
+    inline uint8_t ReadImmediate()
+    {
+        return ReadMemory(program_counter_++);
+    }
+
+    inline uint16_t ReadImmediate16()
+    {
+        uint8_t low = ReadImmediate();
+        uint8_t high = ReadImmediate();
+        return static_cast<uint16_t>((high << 8) | low);
+    }
+
+    inline uint8_t ReadMemory(uint16_t address)
     {
         return memory_.Read(address);
     }
 
-    void WriteMemory(uint16_t address, uint8_t data)
+    inline void WriteMemory(uint16_t address, uint8_t data)
     {
         memory_.Write(address, data);
+    }
+
+    inline Register &GetSourceRegister(uint8_t op_code) noexcept
+    {
+        return GetRegister(op_code & 0b0000'0111);
+    }
+
+    inline Register &GetDestinationRegister(uint8_t op_code) noexcept
+    {
+        return GetRegister((op_code & 0b0011'1000) >> 3);
     }
 
     Register &GetRegister(uint8_t register_code) noexcept
@@ -815,16 +799,6 @@ private:
         std::terminate();
     }
 
-    Register &GetSourceRegister(uint8_t op_code) noexcept
-    {
-        return GetRegister(op_code & 0b0000'0111);
-    }
-
-    Register &GetDestinationRegister(uint8_t op_code) noexcept
-    {
-        return GetRegister((op_code & 0b0011'1000) >> 3);
-    }
-
     RegisterPair &GetRegisterPair(uint8_t op_code) noexcept
     {
         switch (RegisterPairCode((op_code & 0b0011'0000) >> 4))
@@ -864,7 +838,7 @@ private:
         M = 0b111,
     };
 
-    bool CheckCondition(uint8_t op_code) noexcept
+    bool CheckCondition(uint8_t op_code) const noexcept
     {
         switch (ConditionIdentifier((op_code & 0b0011'1000) >> 3))
         {
@@ -960,6 +934,29 @@ private:
     inline uint8_t GetInterruptAddress(uint8_t op_code) const noexcept
     {
         return op_code & 0b0011'1000;
+    }
+
+    inline void Push(RegisterPair &rp)
+    {
+        Push(rp.low_, rp.high_);
+    }
+
+    inline void Push(uint8_t low, uint8_t high)
+    {
+        WriteMemory(--stack_pointer_, high);
+        WriteMemory(--stack_pointer_, low);
+    }
+
+    inline void Pop(RegisterPair &rp)
+    {
+        Pop(rp.low_, rp.high_);
+    }
+
+    template <typename LowType, typename HighType>
+    inline void Pop(LowType &low, HighType &high)
+    {
+        low = ReadMemory(stack_pointer_);
+        high = ReadMemory(++stack_pointer_);
     }
 };
 

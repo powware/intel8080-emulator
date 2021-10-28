@@ -910,13 +910,13 @@ private:
         std::terminate();
     }
 
-    inline void SetAllFlags(int temp)
+    inline void SetAllFlags(int temp) noexcept
     {
         SetAllFlagsExceptCarry(temp);
         SetCarryFlag(temp);
     }
 
-    inline void SetAllFlagsExceptCarry(int temp)
+    inline void SetAllFlagsExceptCarry(int temp) noexcept
     {
         SetZeroFlag(temp);
         SetSignFlag(temp);
@@ -925,17 +925,17 @@ private:
         SetAuxiliaryCarryFlag(temp);
     }
 
-    inline void SetZeroFlag(int temp)
+    inline void SetZeroFlag(int temp) noexcept
     {
         flags_.zero = static_cast<uint8_t>(temp) == 0;
     }
 
-    inline void SetSignFlag(int temp)
+    inline void SetSignFlag(int temp) noexcept
     {
         flags_.sign = (temp & 0b1000'0000) != 0;
     }
 
-    inline void SetParityFlag(int temp)
+    inline void SetParityFlag(int temp) noexcept
     {
         int sum_of_bits = 0;
         for (int i = 0; i < 8; ++i)
@@ -946,18 +946,18 @@ private:
         flags_.parity = (sum_of_bits % 2) == 0;
     }
 
-    inline void SetCarryFlag(int temp)
+    inline void SetCarryFlag(int temp) noexcept
     {
         flags_.carry = temp > 0xFF;
     }
 
-    inline void SetAuxiliaryCarryFlag(int temp)
+    inline void SetAuxiliaryCarryFlag(int temp) noexcept
     {
         unused(temp);
         // not yet supported
     }
 
-    inline uint8_t GetInterruptAddress(uint8_t op_code)
+    inline uint8_t GetInterruptAddress(uint8_t op_code) const noexcept
     {
         return op_code & 0b0011'1000;
     }

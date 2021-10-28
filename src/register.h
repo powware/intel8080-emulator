@@ -74,6 +74,21 @@ public:
         return temp;
     }
 
+    auto &operator--() noexcept
+    {
+        --data_;
+
+        return *this;
+    }
+
+    auto operator--(int) noexcept
+    {
+        auto temp = data_;
+        --data_;
+
+        return temp;
+    }
+
     operator uint8_t() const noexcept
     {
         return data_;
@@ -152,6 +167,21 @@ public:
     {
         auto temp = data_;
         ++data_;
+
+        return temp;
+    }
+
+    auto &operator--() noexcept
+    {
+        --data_;
+
+        return *this;
+    }
+
+    auto operator--(int) noexcept
+    {
+        auto temp = data_;
+        --data_;
 
         return temp;
     }

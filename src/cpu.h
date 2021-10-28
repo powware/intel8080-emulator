@@ -744,19 +744,19 @@ private:
         }
         else if (op_code == InstructionSet::IN)
         {
-            std::cout << "IN\n";
+            throw std::runtime_error("IN");
         }
         else if (op_code == InstructionSet::OUT)
         {
-            std::cout << "OUT\n";
+            throw std::runtime_error("OUT");
         }
         else if (op_code == InstructionSet::EI)
         {
-            std::cout << "EI\n";
+            throw std::runtime_error("EI");
         }
         else if (op_code == InstructionSet::DI)
         {
-            std::cout << "DI\n";
+            throw std::runtime_error("DI");
         }
         else if (op_code == InstructionSet::NOP)
         {

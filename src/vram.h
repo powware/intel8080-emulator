@@ -4,6 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <cstring>
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -87,26 +88,29 @@ public:
 
     std::size_t size() const noexcept override
     {
-        return 0;
+        return pixels_.size() / 4;
     }
 
-    uint8_t Read(std::size_t index) const noexcept override
+    uint8_t Read(std::size_t index) const override
     {
         unused(index);
-
-        return 0;
+        throw std::runtime_error("::Read()");
     }
 
     void Write(std::size_t index, uint8_t data) noexcept override
     {
-        unused(index, data);
+        data = 255;
+        std::memset(&pixels_[index * 4], data, 4);
     }
 
 private:
     std::vector<uint8_t> pixels_;
+
     sf::RenderWindow window_;
+
     std::atomic<bool> event_handler_thread_running_;
     std::thread event_handler_thread_;
+
     std::atomic<bool> render_thread_running_;
     std::thread render_thread_;
 };

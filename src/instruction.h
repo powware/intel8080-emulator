@@ -2,16 +2,16 @@
 #define INSTRUCTION_H
 
 #include <cstdint>
+#include <cassert>
 #include <utility>
-#include <tuple>
 #include <string_view>
 
 class Instruction
 {
 public:
-    constexpr Instruction(const char *mask) noexcept : mask_isolater_(CreateMaskIsolater(mask, std::make_index_sequence<sizeof(mask)>{})), mask_(CreateMask(mask, std::make_index_sequence<sizeof(mask)>{}))
+    constexpr Instruction(const char *mask) noexcept : mask_isolater_(CreateMaskIsolater(mask, std::make_index_sequence<kMaskBitCount>{})), mask_(CreateMask(mask, std::make_index_sequence<kMaskBitCount>{}))
     {
-        assert(std::string_view(mask).size() == 8);
+        assert(std::string_view(mask).size() == kMaskBitCount);
     }
 
     inline constexpr bool operator==(uint8_t data) const noexcept
@@ -35,19 +35,20 @@ public:
     }
 
 private:
+    static constexpr std::size_t kMaskBitCount = 8;
     const uint8_t mask_isolater_;
     const uint8_t mask_;
 
     template <std::size_t... indexes>
     constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
-        return static_cast<uint8_t>((((mask[indexes] == '0' || mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...));
+        return static_cast<uint8_t>((((mask[indexes] == '0' || mask[indexes] == '1') << (kMaskBitCount - 1 - indexes)) | ...));
     }
 
     template <std::size_t... indexes>
     constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) const noexcept
     {
-        return static_cast<uint8_t>((((mask[indexes] == '1') << (sizeof(mask) - 1 - indexes)) | ...));
+        return static_cast<uint8_t>((((mask[indexes] == '1') << (kMaskBitCount - 1 - indexes)) | ...));
     }
 };
 
@@ -167,7 +168,7 @@ struct InstructionSet
 
     static constexpr auto SPHL = Instruction("11111001");
 
-    static constexpr auto IN = Instruction("11011101");
+    static constexpr auto IN = Instruction("11011011");
 
     static constexpr auto OUT = Instruction("11010011");
 

@@ -17,7 +17,7 @@ int main()
         cpu.AddMemory<ROM>(space_invaders_path / "invaders.f");
         cpu.AddMemory<ROM>(space_invaders_path / "invaders.e");
         cpu.AddMemory<RAM>(0x400);
-        cpu.AddMemory<VRAM>(224, 256); // VRAM
+        cpu.AddMemory<VRAM>(224, 256, cpu); // VRAM
     }
     catch (const std::runtime_error &exception)
     {

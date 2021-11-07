@@ -76,7 +76,7 @@ public:
 
     auto &operator--() noexcept
     {
-        --data_;
+        data_ = data_ + ~uint8_t(1) + 1;
 
         return *this;
     }
@@ -84,7 +84,7 @@ public:
     auto operator--(int) noexcept
     {
         auto temp = data_;
-        --data_;
+        --*this;
 
         return temp;
     }
@@ -173,7 +173,7 @@ public:
 
     auto &operator--() noexcept
     {
-        --data_;
+        data_ = data_ + ~uint16_t(1) + 1;
 
         return *this;
     }
@@ -181,7 +181,7 @@ public:
     auto operator--(int) noexcept
     {
         auto temp = data_;
-        --data_;
+        --*this;
 
         return temp;
     }

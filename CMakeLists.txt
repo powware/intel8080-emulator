@@ -8,6 +8,7 @@ project(intel8080-emulator CXX)
 
 add_executable(intel8080-emulator ${PROJECT_SOURCE_DIR}/src/main.cpp
                                   ${PROJECT_SOURCE_DIR}/src/memory.cpp
+                                  ${PROJECT_SOURCE_DIR}/src/vram.cpp
 )
 
 if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")

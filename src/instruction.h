@@ -2,6 +2,7 @@
 #define INSTRUCTION_H
 
 #include <cstdint>
+#include <climits>
 #include <cassert>
 #include <utility>
 #include <string_view>

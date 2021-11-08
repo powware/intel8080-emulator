@@ -22,7 +22,7 @@ using namespace std::chrono_literals;
 
 static inline uint16_t SubtractTwosComplement(uint8_t minuend, uint8_t subtrahend, bool carry = false) noexcept
 {
-    return minuend + ~subtrahend + uint8_t(!carry);
+    return static_cast<uint16_t>(minuend + ~subtrahend + uint8_t(!carry));
 }
 
 class CPU final
@@ -122,7 +122,7 @@ private:
 
     inline void ADD(uint8_t value, bool carry = false)
     {
-        uint16_t temp = a_ + value + uint8_t(carry);
+        uint16_t temp = static_cast<uint16_t>(a_ + value + uint8_t(carry));
         SetAllFlags(temp);
         a_ = static_cast<uint8_t>(temp);
     }
@@ -1018,26 +1018,27 @@ private:
         return op_code & 0b0011'1000;
     }
 
-    template <typename Type>
-    inline void Push(const Type &value)
-    {
-        WriteMemory(--stack_pointer_, value);
-    }
-
-    template <>
     inline void Push(const RegisterPair &rp)
     {
         Push(rp.high_);
         Push(rp.low_);
     }
 
-    template <typename Type>
-    inline void Pop(Type &value)
+    inline void Push(uint8_t value)
+    {
+        WriteMemory(--stack_pointer_, value);
+    }
+
+    inline void Pop(Register &value)
     {
         value = ReadMemory(stack_pointer_++);
     }
 
-    template <>
+    inline void Pop(uint8_t &value)
+    {
+        value = ReadMemory(stack_pointer_++);
+    }
+
     inline void Pop(RegisterPair &rp)
     {
         Pop(rp.low_);

@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -34,15 +35,12 @@ public:
     void Write(std::size_t index, uint8_t data) noexcept override;
 
 private:
+    mutable std::mutex data_mutex_;
+    std::vector<uint8_t> data_;
     std::vector<uint8_t> pixels_;
 
-    sf::RenderWindow window_;
-
-    std::atomic<bool> event_handler_thread_running_;
-    std::thread event_handler_thread_;
-
-    std::atomic<bool> render_thread_running_;
-    std::thread render_thread_;
+    std::atomic<bool> window_thread_running_;
+    std::thread window_thread_;
 
     CPU &cpu_;
 };

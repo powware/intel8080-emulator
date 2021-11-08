@@ -18,13 +18,14 @@ int main()
         cpu.AddMemory<ROM>(space_invaders_path / "invaders.e");
         cpu.AddMemory<RAM>(0x400);
         cpu.AddMemory<VRAM>(224, 256, cpu); // VRAM
+        cpu.Run();
     }
-    catch (const std::runtime_error &exception)
+    catch (const std::exception &e)
     {
-        std::cout << exception.what() << std::endl;
+        std::cout << e.what() << std::endl;
 
         return EXIT_FAILURE;
     }
 
-    return cpu.Run() ? EXIT_SUCCESS : EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }

@@ -3,20 +3,33 @@
 
 #include <iostream>
 
-#include "register.h"
+#undef DEBUG
 
 class Logger
 {
 public:
-    template <typename... Args>
-    inline static void Log(std::string_view format_string, Args &&...args) noexcept
+    virtual ~Logger() {}
+
+    static Logger &Instance()
+    {
+        static Logger logger;
+        return logger;
+    }
+
+    template <typename Type>
+    auto operator<<(const Type &rhs)
     {
 #ifdef DEBUG
-        unused(format_string, std::forward<Args>(args)...);
+        std::cout << rhs;
 #else
-        unused(format_string, std::forward<Args>(args)...);
+        unused(rhs);
 #endif // DEBUG
+
+        return *this;
     }
+
+private:
+    Logger() {}
 };
 
 #endif /* LOGGER_H */

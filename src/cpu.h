@@ -9,6 +9,8 @@
 #include <mutex>
 #include <thread>
 
+#include <SFML/Window/Keyboard.hpp>
+
 #include "register.h"
 #include "instruction.h"
 #include "ram.h"
@@ -37,28 +39,27 @@ public:
         memory_.AddMemory<MemoryType>(std::forward<Args>(args)...);
     }
 
-    bool Run() noexcept
+    void Run()
     {
-        try
+        uint64_t counter = 0;
+        executing_ = true;
+        while (executing_)
         {
-            while (true)
-            {
-                uint8_t op_code = FetchInstruction();
-                ExecuteInstruction(op_code);
-            }
+            uint8_t op_code = FetchInstruction();
+            ExecuteInstruction(op_code);
+            ++counter;
         }
-        catch (std::runtime_error &exception)
-        {
-            std::cout << "CPU::Run(): " << exception.what() << "\n";
+    }
 
-            return false;
-        }
-
-        return true;
+    void Stop()
+    {
+        executing_ = false;
     }
 
     void Interrupt(uint8_t interrupt)
     {
+        assert(interrupt <= 0b111);
+
         std::scoped_lock lock(interrupt_mutex_);
         if (interrupts_enabled_)
         {
@@ -94,9 +95,12 @@ private:
     RegisterPair stack_pointer_{"Stack Pointer"};
     RegisterPair program_counter_{"Program Counter"};
 
+    uint8_t shift_offset_{0};
     RegisterPair shift_{"Shift"};
 
     Memory memory_;
+
+    std::atomic<bool> executing_{false};
 
     std::mutex interrupt_mutex_;
     bool interrupts_enabled_{false};
@@ -105,7 +109,7 @@ private:
 
     inline uint8_t FetchInstruction()
     {
-        std::cout << std::hex << static_cast<uint16_t>(program_counter_) << std::dec << ": ";
+        Logger::Instance() << std::hex << static_cast<uint16_t>(program_counter_) << std::dec << ": ";
         std::scoped_lock lock(interrupt_mutex_);
         if (interrupts_enabled_ && interrupt_requested_)
         {
@@ -194,14 +198,14 @@ private:
                 auto &destination = GetDestinationRegister(op_code);
                 destination = ReadMemory(hl_);
 
-                std::cout << "MOV_r_M\n";
+                Logger::Instance() << "MOV_r_M\n";
             }
             else if (op_code == InstructionSet::MOV_M_r)
             {
                 auto &source = GetSourceRegister(op_code);
                 WriteMemory(hl_, source);
 
-                std::cout << "MOV_M_r\n";
+                Logger::Instance() << "MOV_M_r\n";
             }
             else // MOV_r1_r2
             {
@@ -210,7 +214,7 @@ private:
 
                 destination = source;
 
-                std::cout << "MOV_r1_r2\n";
+                Logger::Instance() << "MOV_r1_r2\n";
             }
         }
         else if (op_code == InstructionSet::MVI_r)
@@ -220,14 +224,14 @@ private:
                 uint8_t immediate = ReadImmediate();
                 WriteMemory(hl_, immediate);
 
-                std::cout << "MVI_M\n";
+                Logger::Instance() << "MVI_M\n";
             }
             else // MVI_r
             {
                 auto &destination = GetDestinationRegister(op_code);
                 destination = ReadImmediate();
 
-                std::cout << "MIV_r\n";
+                Logger::Instance() << "MIV_r\n";
             }
         }
         else if (op_code == InstructionSet::LXI)
@@ -235,7 +239,7 @@ private:
             auto &destination = GetRegisterPair(op_code);
             destination = ReadImmediate16();
 
-            std::cout << "LXI\n";
+            Logger::Instance() << "LXI\n";
         }
         else if (op_code == InstructionSet::LDAX)
         {
@@ -250,7 +254,7 @@ private:
                 l_ = ReadMemory(immediate);
                 h_ = ReadMemory(++immediate);
 
-                std::cout << "LHLD: " << l_ << " <- (" << immediate - 1 << ") && " << h_ << " <- (" << immediate << ")\n";
+                Logger::Instance() << "LHLD: " << l_ << " <- (" << immediate - 1 << ") && " << h_ << " <- (" << immediate << ")\n";
             }
             else // LDAX
             {
@@ -258,7 +262,7 @@ private:
 
                 a_ = ReadMemory(source);
 
-                std::cout << "LDAX: " << a_ << " <- (" << source << ")\n";
+                Logger::Instance() << "LDAX: " << a_ << " <- (" << source << ")\n";
             }
         }
         else if (op_code == InstructionSet::STAX)
@@ -268,7 +272,7 @@ private:
                 uint16_t immediate = ReadImmediate16();
                 WriteMemory(immediate, a_);
 
-                std::cout << "STA: (" << int(immediate) << ")" << a_ << "\n";
+                Logger::Instance() << "STA: (" << int(immediate) << ")" << a_ << "\n";
             }
             else if (op_code == InstructionSet::SHLD)
             {
@@ -276,14 +280,14 @@ private:
                 WriteMemory(immediate, l_);
                 WriteMemory(++immediate, h_);
 
-                std::cout << "SHLD: (" << immediate - 1 << ") <- " << l_ << " && (" << immediate << ")" << h_ << "\n";
+                Logger::Instance() << "SHLD: (" << immediate - 1 << ") <- " << l_ << " && (" << immediate << ")" << h_ << "\n";
             }
             else // STAX
             {
                 auto &destination = GetRegisterPair(op_code);
                 WriteMemory(destination, a_);
 
-                std::cout << "STAX: (" << destination << ") <- " << a_ << "\n";
+                Logger::Instance() << "STAX: (" << destination << ") <- " << a_ << "\n";
             }
         }
         else if (op_code == InstructionSet::XCHG)
@@ -291,7 +295,7 @@ private:
             swap(h_, d_);
             swap(l_, e_);
 
-            std::cout << "XCHG\n";
+            Logger::Instance() << "XCHG\n";
         }
         else if (op_code == InstructionSet::ADD_r)
         {
@@ -373,7 +377,7 @@ private:
                 uint16_t temp = INR(memory);
                 WriteMemory(hl_, static_cast<uint8_t>(temp));
 
-                std::cout << "INR_M\n";
+                Logger::Instance() << "INR_M\n";
             }
             else // INR_R
             {
@@ -381,7 +385,7 @@ private:
                 uint16_t temp = INR(destination);
                 destination = static_cast<uint8_t>(temp);
 
-                std::cout << "INR_r\n";
+                Logger::Instance() << "INR_r\n";
             }
         }
         else if (op_code == InstructionSet::DCR_r)
@@ -392,7 +396,7 @@ private:
                 uint16_t temp = DCR(memory);
                 WriteMemory(hl_, static_cast<uint8_t>(temp));
 
-                std::cout << "DCR_M\n";
+                Logger::Instance() << "DCR_M\n";
             }
             else // DCR_R
             {
@@ -400,7 +404,7 @@ private:
                 uint16_t temp = DCR(destination);
                 destination = static_cast<uint8_t>(temp);
 
-                std::cout << "DCR_r\n";
+                Logger::Instance() << "DCR_r\n";
             }
         }
         else if (op_code == InstructionSet::INX)
@@ -408,14 +412,14 @@ private:
             auto &destination = GetRegisterPair(op_code);
             ++destination;
 
-            std::cout << "INX\n";
+            Logger::Instance() << "INX\n";
         }
         else if (op_code == InstructionSet::DCX)
         {
             auto &destination = GetRegisterPair(op_code);
             --destination;
 
-            std::cout << "DCX\n";
+            Logger::Instance() << "DCX\n";
         }
         else if (op_code == InstructionSet::DAD)
         {
@@ -425,7 +429,7 @@ private:
             flags_.carry = temp > std::numeric_limits<uint16_t>::max();
             hl_ = static_cast<uint16_t>(temp);
 
-            std::cout << "DAD\n";
+            Logger::Instance() << "DAD\n";
         }
         else if (op_code == InstructionSet::DAA)
         {
@@ -438,14 +442,14 @@ private:
                 uint8_t memory = ReadMemory(hl_);
                 ANA(memory);
 
-                std::cout << "ANA_M\n";
+                Logger::Instance() << "ANA_M\n";
             }
             else // ANA_r
             {
                 auto &source = GetSourceRegister(op_code);
                 ANA(source);
 
-                std::cout << "ANA_r\n";
+                Logger::Instance() << "ANA_r\n";
             }
         }
         else if (op_code == InstructionSet::ANI)
@@ -460,14 +464,14 @@ private:
                 uint8_t memory = ReadMemory(hl_);
                 XRA(memory);
 
-                std::cout << "XRA_M\n";
+                Logger::Instance() << "XRA_M\n";
             }
             else // XRA_r
             {
                 auto &source = GetSourceRegister(op_code);
                 XRA(source);
 
-                std::cout << "XRA_r\n";
+                Logger::Instance() << "XRA_r\n";
             }
         }
         else if (op_code == InstructionSet::XRI)
@@ -475,7 +479,7 @@ private:
             uint8_t immediate = ReadImmediate();
             XRA(immediate);
 
-            std::cout << "XRI\n";
+            Logger::Instance() << "XRI\n";
         }
         else if (op_code == InstructionSet::ORA_r)
         {
@@ -484,14 +488,14 @@ private:
                 uint8_t memory = ReadMemory(hl_);
                 ORA(memory);
 
-                std::cout << "ORA_M\n";
+                Logger::Instance() << "ORA_M\n";
             }
             else // ORA_r
             {
                 auto &source = GetSourceRegister(op_code);
                 ORA(source);
 
-                std::cout << "ORA_r\n";
+                Logger::Instance() << "ORA_r\n";
             }
         }
         else if (op_code == InstructionSet::ORI)
@@ -499,7 +503,7 @@ private:
             uint8_t immediate = ReadImmediate();
             ORA(immediate);
 
-            std::cout << "ORI\n";
+            Logger::Instance() << "ORI\n";
         }
         else if (op_code == InstructionSet::CMP_r)
         {
@@ -508,14 +512,14 @@ private:
                 uint8_t memory = ReadMemory(hl_);
                 CMP(memory);
 
-                std::cout << "CMP_M\n";
+                Logger::Instance() << "CMP_M\n";
             }
             else // CMP_r
             {
                 auto &source = GetSourceRegister(op_code);
                 CMP(source);
 
-                std::cout << "CMP_r\n";
+                Logger::Instance() << "CMP_r\n";
             }
         }
         else if (op_code == InstructionSet::CPI)
@@ -523,7 +527,7 @@ private:
             uint8_t immediate = ReadImmediate();
             CMP(immediate);
 
-            std::cout << "CPI " << a_ << " " << +immediate << "\n";
+            Logger::Instance() << "CPI " << a_ << " " << +immediate << "\n";
         }
         else if (op_code == InstructionSet::RLC)
         {
@@ -531,15 +535,14 @@ private:
             SetCarryFlag(temp);
             a_ = static_cast<uint8_t>(temp | uint8_t(flags_.carry));
 
-            std::cout << "RLC\n";
+            Logger::Instance() << "RLC\n";
         }
         else if (op_code == InstructionSet::RRC)
         {
             flags_.carry = a_ & 1;
-            uint8_t temp = a_ >> 1;
-            a_ = static_cast<uint8_t>(temp | (uint8_t(flags_.carry) << 8));
+            a_ = static_cast<uint8_t>((uint8_t(flags_.carry) << 7) | (a_ >> 1));
 
-            std::cout << "RRC\n";
+            Logger::Instance() << "RRC\n";
         }
         else if (op_code == InstructionSet::RAL)
         {
@@ -548,76 +551,88 @@ private:
             SetCarryFlag(temp);
             a_ = static_cast<uint8_t>(temp | uint8_t(old_carry));
 
-            std::cout << "RAL\n";
+            Logger::Instance() << "RAL\n";
         }
         else if (op_code == InstructionSet::RAR)
         {
             bool new_carry = a_ & 1;
-            a_ = static_cast<uint8_t>((a_ >> 1) | (uint8_t(flags_.carry) << 8));
+            a_ = static_cast<uint8_t>((uint8_t(flags_.carry) << 7 | (a_ >> 1)));
             flags_.carry = new_carry;
 
-            std::cout << "RAR\n";
+            Logger::Instance() << "RAR\n";
         }
         else if (op_code == InstructionSet::CMA)
         {
             a_ = ~a_;
 
-            std::cout << "CMA\n";
+            Logger::Instance() << "CMA\n";
         }
         else if (op_code == InstructionSet::CMC)
         {
             flags_.carry = !flags_.carry;
 
-            std::cout << "CMC\n";
+            Logger::Instance() << "CMC\n";
         }
         else if (op_code == InstructionSet::STC)
         {
             flags_.carry = true;
 
-            std::cout << "STC\n";
+            Logger::Instance() << "STC\n";
         }
         else if (op_code == InstructionSet::JMP || op_code == InstructionSet::JC)
         {
-            uint16_t immediate = ReadImmediate16();
-            if (op_code == InstructionSet::JMP || (op_code == InstructionSet::JC && CheckCondition(op_code)))
+            uint16_t immediate = ReadImmediate16(); // has to be done unconditionally to move program_counter_ correctly
+            if (op_code == InstructionSet::JC && !CheckCondition(op_code))
             {
-                program_counter_ = immediate;
+                Logger::Instance() << "JC skipped\n";
+                return;
             }
 
-            std::cout << "JMP/JC\n";
+            program_counter_ = immediate;
+
+            Logger::Instance() << (op_code == InstructionSet::JMP ? "JMP" : "JC")
+                               << "\n";
         }
         else if (op_code == InstructionSet::CALL || op_code == InstructionSet::CC)
         {
-            uint16_t immediate = ReadImmediate16();
-            if (op_code == InstructionSet::CALL || (op_code == InstructionSet::CC && CheckCondition(op_code)))
+            uint16_t immediate = ReadImmediate16(); // has to be done unconditionally to move program_counter_ correctly
+            if (op_code == InstructionSet::CC && !CheckCondition(op_code))
             {
-                Push(program_counter_);
-                program_counter_ = immediate;
+                Logger::Instance() << "CC skipped\n";
+                return;
             }
 
-            std::cout << "CALL/CC\n";
+            Push(program_counter_);
+            program_counter_ = immediate;
+
+            Logger::Instance() << (op_code == InstructionSet::CALL ? "CALL" : "CC")
+                               << "\n";
         }
         else if (op_code == InstructionSet::RET || op_code == InstructionSet::RC)
         {
-            if (op_code == InstructionSet::RET || (op_code == InstructionSet::RC && CheckCondition(op_code)))
+            if (op_code == InstructionSet::RC && !CheckCondition(op_code))
             {
-                Pop(program_counter_);
+                Logger::Instance() << "RET skipped\n";
+                return;
             }
 
-            std::cout << "RET/RC\n";
+            Pop(program_counter_);
+
+            Logger::Instance() << (op_code == InstructionSet::RET ? "RET" : "RC")
+                               << "\n";
         }
         else if (op_code == InstructionSet::RST)
         {
             Push(program_counter_);
             program_counter_ = GetInterruptAddress(op_code);
 
-            std::cout << "RST\n";
+            Logger::Instance() << "RST\n";
         }
         else if (op_code == InstructionSet::PCHL)
         {
             program_counter_ = hl_;
 
-            std::cout << "PCHL\n";
+            Logger::Instance() << "PCHL\n";
         }
         else if (op_code == InstructionSet::PUSH_rp)
         {
@@ -628,14 +643,14 @@ private:
                 Push(a_);
                 Push(status);
 
-                std::cout << "PUSH_PSW\n";
+                Logger::Instance() << "PUSH_PSW\n";
             }
             else // PUSH_rp
             {
                 auto &source = GetRegisterPair(op_code);
                 Push(source);
 
-                std::cout << "PUSH_rp\n";
+                Logger::Instance() << "PUSH_rp\n";
             }
         }
         else if (op_code == InstructionSet::POP_rp)
@@ -652,14 +667,14 @@ private:
                 flags_.zero = status & 0b0100'0000;
                 flags_.sign = status & 0b1000'0000;
 
-                std::cout << "POP_PSW\n";
+                Logger::Instance() << "POP_PSW\n";
             }
             else // POP_rp
             {
                 auto &destination = GetRegisterPair(op_code);
                 Pop(destination);
 
-                std::cout << "POP_rp\n";
+                Logger::Instance() << "POP_rp\n";
             }
         }
         else if (op_code == InstructionSet::XTHL)
@@ -672,13 +687,13 @@ private:
             hl_.high_ = ReadMemory(stack_pointer_ + 1);
             WriteMemory(stack_pointer_ + 1, temp.high_);
 
-            std::cout << "XTHL\n";
+            Logger::Instance() << "XTHL\n";
         }
         else if (op_code == InstructionSet::SPHL)
         {
             stack_pointer_ = hl_;
 
-            std::cout << "SPHL\n";
+            Logger::Instance() << "SPHL\n";
         }
         else if (op_code == InstructionSet::IN)
         {
@@ -686,17 +701,34 @@ private:
             {
             case 1:
             {
-                a_ = 0b0000'1110;
+                a_ = 0b0000'0000;
+
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+                {
+                    a_ = a_ | 0b0000'00100;
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+                {
+                    a_ = a_ | 0b0001'00000;
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+                {
+                    a_ = a_ | 0b0010'00000;
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+                {
+                    a_ = a_ | 0b0100'00000;
+                }
             }
             break;
             case 2:
             {
-                a_ = 0b1000'0000;
+                a_ = 0b0000'0000;
             }
             break;
             case 3:
             {
-                a_ = static_cast<uint8_t>(shift_);
+                a_ = static_cast<uint8_t>(shift_ >> (CHAR_BIT - shift_offset_));
             }
             break;
             default:
@@ -706,7 +738,7 @@ private:
             break;
             }
 
-            std::cout << "IN\n";
+            Logger::Instance() << "IN\n";
         }
         else if (op_code == InstructionSet::OUT)
         {
@@ -714,7 +746,7 @@ private:
             {
             case 2:
             {
-                shift_ = shift_ << (a_ & 0b0000'0111);
+                shift_offset_ = a_ & 0b0000'0111;
             }
             break;
             case 3:
@@ -724,7 +756,8 @@ private:
             break;
             case 4:
             {
-                shift_ = a_;
+                shift_.low_ = shift_.high_;
+                shift_.high_ = a_;
             }
             break;
             case 5:
@@ -744,7 +777,7 @@ private:
             break;
             }
 
-            std::cout << "OUT\n";
+            Logger::Instance() << "OUT\n";
         }
         else if (op_code == InstructionSet::EI)
         {
@@ -752,18 +785,18 @@ private:
             interrupts_enabled_ = true;
             interrupt_requested_ = false;
 
-            std::cout << "EI\n";
+            Logger::Instance() << "EI\n";
         }
         else if (op_code == InstructionSet::DI)
         {
             std::scoped_lock lock(interrupt_mutex_);
             interrupts_enabled_ = false;
 
-            std::cout << "DI\n";
+            Logger::Instance() << "DI\n";
         }
         else if (op_code == InstructionSet::NOP)
         {
-            std::cout << "NOP\n";
+            Logger::Instance() << "NOP\n";
         }
         else
         {
@@ -780,7 +813,7 @@ private:
     {
         uint8_t low = ReadImmediate();
         uint8_t high = ReadImmediate();
-        return static_cast<uint16_t>((high << 8) | low);
+        return static_cast<uint16_t>((high << CHAR_BIT) | low);
     }
 
     inline uint8_t ReadMemory(uint16_t address)
@@ -959,7 +992,7 @@ private:
     inline void SetParityFlag(uint16_t temp) noexcept
     {
         int sum_of_bits = 0;
-        for (int i = 0; i < 8; ++i)
+        for (int i = 0; i < CHAR_BIT; ++i)
         {
             if (temp & (1 << i))
             {

@@ -3,6 +3,10 @@
 #include <chrono>
 #include <cstring>
 
+#ifdef __linux__
+#include <X11/Xlib.h>
+#endif // __linux__
+
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Window/Event.hpp>
@@ -13,13 +17,16 @@ using namespace std::chrono_literals;
 
 VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / CHAR_BIT) * height), pixels_(width * height * 4), window_thread_running_(true), window_thread_([=, this]()
                                                                                                                                                                               {
+#ifdef __linux__
+                                                                                                                                                                                  XInitThreads();
+#endif // __linux__
                                                                                                                                                                                   sf::RenderWindow window(sf::VideoMode(width, height), "Space Invaders", sf::Style::Close);
-                                                                                                                                                                                  window.setActive(false);
+                                                                                                                                                                                  //window.setActive(false);
 
                                                                                                                                                                                   std::atomic<bool> render_thread_running = true;
                                                                                                                                                                                   std::thread render_thread([&, this]()
                                                                                                                                                                                                             {
-                                                                                                                                                                                                                window.setActive(true);
+                                                                                                                                                                                                                //window.setActive(true);
                                                                                                                                                                                                                 sf::Texture texture;
                                                                                                                                                                                                                 if (!texture.create(width, height))
                                                                                                                                                                                                                 {
@@ -98,7 +105,7 @@ VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / C
                                                                 cpu_(cpu)
 
 {
-    std::memset(pixels_.data(), 0, pixels_.size());
+    std::memset(data_.data(), 0, data_.size());
 }
 
 VRAM::~VRAM()

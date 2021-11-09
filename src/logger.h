@@ -3,21 +3,17 @@
 
 #include <iostream>
 
-#undef DEBUG
+#include "utilities.h"
 
 class Logger
 {
 public:
-    virtual ~Logger() {}
+    virtual ~Logger() noexcept;
 
-    static Logger &Instance()
-    {
-        static Logger logger;
-        return logger;
-    }
+    static const Logger &Instance() noexcept;
 
     template <typename Type>
-    auto operator<<(const Type &rhs)
+    auto operator<<(const Type &rhs) const noexcept
     {
 #ifdef DEBUG
         std::cout << rhs;
@@ -29,7 +25,7 @@ public:
     }
 
 private:
-    Logger() {}
+    Logger() noexcept;
 };
 
 #endif /* LOGGER_H */

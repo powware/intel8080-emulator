@@ -2,7 +2,6 @@
 #define RAM_H
 
 #include <cstdint>
-#include <cassert>
 #include <vector>
 
 #include "memory_interface.h"
@@ -10,36 +9,23 @@
 class RAM final : public MemoryInterface
 {
 public:
-    RAM(std::size_t size) : data_(size, 0) {}
+    RAM(std::size_t size);
 
     RAM(const RAM &) = delete;
 
     RAM(RAM &&) = delete;
 
-    virtual ~RAM() {}
+    virtual ~RAM();
 
     auto operator=(const RAM &) = delete;
 
     auto operator=(RAM &&) = delete;
 
-    std::size_t size() const noexcept override
-    {
-        return data_.size();
-    }
+    std::size_t size() const noexcept override;
 
-    uint8_t Read(std::size_t index) const noexcept override
-    {
-        assert(index < data_.size());
+    uint8_t Read(std::size_t index) const noexcept override;
 
-        return data_[index];
-    }
-
-    void Write(std::size_t index, uint8_t data) noexcept override
-    {
-        assert(index < data_.size());
-
-        data_[index] = data;
-    }
+    void Write(std::size_t index, uint8_t data) noexcept override;
 
 private:
     std::vector<uint8_t> data_;

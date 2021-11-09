@@ -2,27 +2,22 @@
 #define REGISTER_H
 
 #include <cstdint>
-#include <array>
 #include <string>
 #include <type_traits>
+#include <iostream>
 
 class Register final
 {
 public:
-    Register(std::string name) noexcept : data_(owned_data_), name_(name) {}
+    Register(std::string name) noexcept;
 
-    Register(uint8_t &data, std::string name) noexcept : data_(data), name_(name) {}
+    Register(uint8_t &data, std::string name) noexcept;
 
     Register(const Register &) = delete;
 
     Register(Register &&) = delete;
 
-    virtual ~Register() {}
-
-    auto &GetData() noexcept
-    {
-        return data_;
-    }
+    virtual ~Register();
 
     auto &operator=(const Register &r) noexcept
     {
@@ -70,27 +65,21 @@ public:
         return temp;
     }
 
-    operator uint8_t() const noexcept
+    operator uint8_t() const noexcept;
+
+    operator std::string() const noexcept;
+
+    inline friend void swap(Register &lhs, Register &rhs) noexcept
     {
-        return data_;
+        uint8_t temp = lhs;
+        lhs = rhs;
+        rhs = temp;
     }
 
-    operator std::string() const noexcept
+    inline friend auto &
+    operator<<(std::ostream &os, const Register &rhs)
     {
-        return name_ + "(" + std::to_string(int(data_)) + ")";
-    }
-
-    friend inline void swap(Register &r1, Register &r2) noexcept
-    {
-        uint8_t temp = r1;
-        r1 = r2;
-        r2 = temp;
-    }
-
-    friend inline auto &
-    operator<<(std::ostream &os, const Register &r)
-    {
-        return os << static_cast<std::string>(r);
+        return os << static_cast<std::string>(rhs);
     }
 
 private:
@@ -105,21 +94,15 @@ public:
     Register low_;
     Register high_;
 
-    RegisterPair(std::string high_name, std::string low_name) noexcept : low_(reinterpret_cast<uint8_t *>(&data_)[0], low_name), high_(reinterpret_cast<uint8_t *>(&data_)[1], high_name)
-    {
-        name_ = high_name + low_name;
-    }
+    RegisterPair(std::string high_name, std::string low_name) noexcept;
 
-    RegisterPair(std::string name) noexcept : RegisterPair(name + "_low", name + "_high")
-    {
-        name_ = name;
-    }
+    RegisterPair(std::string name) noexcept;
 
     RegisterPair(const RegisterPair &) = delete;
 
     RegisterPair(RegisterPair &&) = delete;
 
-    virtual ~RegisterPair() {}
+    virtual ~RegisterPair();
 
     auto &operator=(const RegisterPair &r) noexcept
     {
@@ -167,17 +150,11 @@ public:
         return temp;
     }
 
-    operator uint16_t() const noexcept
-    {
-        return data_;
-    }
+    operator uint16_t() const noexcept;
 
-    operator std::string() const noexcept
-    {
-        return name_ + "(" + std::to_string(int(data_)) + ")";
-    }
+    operator std::string() const noexcept;
 
-    friend auto &operator<<(std::ostream &os, const RegisterPair &r)
+    inline friend auto &operator<<(std::ostream &os, const RegisterPair &r)
     {
         return os << static_cast<std::string>(r);
     }

@@ -20,9 +20,15 @@
 
 using namespace std::chrono_literals;
 
-static inline uint16_t SubtractTwosComplement(uint8_t minuend, uint8_t subtrahend, bool carry = false) noexcept
+inline std::tuple<uint16_t, uint8_t> Addition(uint8_t lhs, uint8_t rhs, bool carry = false)
 {
-    return static_cast<uint16_t>(minuend + ~subtrahend + uint8_t(!carry));
+    uint16_t result = lhs + rhs + uint8_t(carry);
+    return std::tuple(result, static_cast<uint8_t>(result ^ lhs ^ rhs ^ uint8_t(carry) >> 1));
+}
+
+inline std::tuple<uint16_t, uint8_t> Subtraction(uint8_t lhs, uint8_t rhs, bool carry = false)
+{
+    return Addition(lhs, ~rhs, !carry);
 }
 
 class CPU final
@@ -71,11 +77,11 @@ public:
 private:
     struct
     {
-        bool carry = 0;
-        bool parity = 0;
-        bool auxiliary_carry = 0;
-        bool zero = 0;
-        bool sign = 0;
+        bool carry = false;
+        bool parity = false;
+        bool auxiliary_carry = false;
+        bool zero = false;
+        bool sign = false;
     } flags_;
 
     Register a_{"A"};
@@ -122,9 +128,9 @@ private:
 
     inline void ADD(uint8_t value, bool carry = false)
     {
-        uint16_t temp = static_cast<uint16_t>(a_ + value + uint8_t(carry));
-        SetAllFlags(temp);
-        a_ = static_cast<uint8_t>(temp);
+        auto [result, carry_per_bit] = Addition(a_, value, carry);
+        SetAllFlags(result, carry_per_bit);
+        a_ = static_cast<uint8_t>(result);
     }
 
     inline void ADC(uint8_t value)
@@ -134,9 +140,9 @@ private:
 
     inline void SUB(uint8_t value, bool carry = false)
     {
-        uint16_t temp = SubtractTwosComplement(a_, value, carry);
-        SetAllFlags(temp);
-        a_ = static_cast<uint8_t>(temp);
+        auto [result, carry_per_bit] = Subtraction(a_, value, carry);
+        SetAllFlags(result, carry_per_bit);
+        a_ = static_cast<uint8_t>(result);
     }
 
     inline void SBB(uint8_t value)
@@ -144,45 +150,58 @@ private:
         SUB(value, flags_.carry);
     }
 
-    inline uint16_t INR(uint8_t value)
+    inline uint8_t INR(uint8_t value)
     {
-        uint16_t temp = value + 1;
-        SetAllFlagsExceptCarry(temp);
+        auto [result, carry_per_bit] = Addition(value, 1);
+        SetNonCarryFlags(result);
+        SetAuxiliaryCarryFlag(carry_per_bit);
 
-        return temp;
+        return static_cast<uint8_t>(result);
     }
 
-    inline uint16_t DCR(uint8_t value)
+    inline uint8_t DCR(uint8_t value)
     {
-        uint16_t temp = SubtractTwosComplement(value, 1);
-        SetAllFlagsExceptCarry(temp);
+        auto [result, carry_per_bit] = Subtraction(value, 1);
+        SetNonCarryFlags(result);
+        SetAuxiliaryCarryFlag(carry_per_bit);
 
-        return temp;
+        return static_cast<uint8_t>(result);
     }
 
     inline void ANA(uint8_t value)
     {
         a_ = a_ & value;
-        SetAllFlags(a_);
+        SetNonCarryFlags(a_);
+
+        flags_.carry = false;
     }
 
     inline void XRA(uint8_t value)
     {
         a_ = a_ ^ value;
-        SetAllFlags(a_);
+        SetNonCarryFlags(a_);
+
+        flags_.carry = false;
+        flags_.auxiliary_carry = false;
     }
 
     inline void ORA(uint8_t value)
     {
         a_ = a_ | value;
-        SetAllFlags(a_);
+        SetNonCarryFlags(a_);
+
+        flags_.carry = false;
+        flags_.auxiliary_carry = false;
     }
 
     inline void CMP(uint8_t value)
     {
-        uint16_t temp = SubtractTwosComplement(a_, value);
-        SetAllFlags(temp);
-        flags_.carry = a_ < value;
+        auto [result, carry_per_bit] = Subtraction(a_, value);
+        SetSignFlag(result);
+        SetParityFlag(result);
+        SetAuxiliaryCarryFlag(carry_per_bit);
+        flags_.zero = (a_ == value);
+        flags_.carry = (a_ < value);
     }
 
     void ExecuteInstruction(uint8_t op_code)
@@ -374,16 +393,16 @@ private:
             if (op_code == InstructionSet::INR_M)
             {
                 uint8_t memory = ReadMemory(hl_);
-                uint16_t temp = INR(memory);
-                WriteMemory(hl_, static_cast<uint8_t>(temp));
+                uint8_t result = INR(memory);
+                WriteMemory(hl_, result);
 
                 Logger::Instance() << "INR_M\n";
             }
             else // INR_R
             {
                 auto &destination = GetDestinationRegister(op_code);
-                uint16_t temp = INR(destination);
-                destination = static_cast<uint8_t>(temp);
+                uint8_t result = INR(destination);
+                destination = result;
 
                 Logger::Instance() << "INR_r\n";
             }
@@ -393,16 +412,16 @@ private:
             if (op_code == InstructionSet::DCR_M)
             {
                 uint8_t memory = ReadMemory(hl_);
-                uint16_t temp = DCR(memory);
-                WriteMemory(hl_, static_cast<uint8_t>(temp));
+                uint8_t result = DCR(memory);
+                WriteMemory(hl_, result);
 
                 Logger::Instance() << "DCR_M\n";
             }
             else // DCR_R
             {
                 auto &destination = GetDestinationRegister(op_code);
-                uint16_t temp = DCR(destination);
-                destination = static_cast<uint8_t>(temp);
+                uint8_t result = DCR(destination);
+                destination = result;
 
                 Logger::Instance() << "DCR_r\n";
             }
@@ -433,7 +452,18 @@ private:
         }
         else if (op_code == InstructionSet::DAA)
         {
-            throw std::runtime_error("CPU::ExecuteInstruction(): DAA");
+            uint8_t correction = 0;
+            if (((a_ & 0b1111) > 9) || flags_.auxiliary_carry)
+            {
+                correction += 6;
+            }
+
+            if ((((a_ + correction) & 0b1111'0000) >> 4 > 9) || flags_.carry)
+            {
+                correction += (6 << 4);
+            }
+
+            ADD(correction);
         }
         else if (op_code == InstructionSet::ANA_r)
         {
@@ -449,6 +479,8 @@ private:
                 auto &source = GetSourceRegister(op_code);
                 ANA(source);
 
+                SetAuxiliaryCarryFlag(a_ << 1); // The 8080 logical AND instructions set the flag to reflect the logical OR of bit 3 of the values involved in the AND operation.
+
                 Logger::Instance() << "ANA_r\n";
             }
         }
@@ -456,6 +488,8 @@ private:
         {
             uint8_t immediate = ReadImmediate();
             ANA(immediate);
+
+            flags_.auxiliary_carry = false;
         }
         else if (op_code == InstructionSet::XRA_r)
         {
@@ -703,21 +737,29 @@ private:
             {
                 a_ = 0b0000'0000;
 
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Enter))
+                {
+                    a_ = a_ | 0b0000'00001;
+                }
+
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num1) || sf::Keyboard::isKeyPressed(sf::Keyboard::Numpad1))
                 {
                     a_ = a_ | 0b0000'00100;
                 }
+
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+                {
+                    a_ = a_ | 0b0000'10000;
+                }
+
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
                 {
                     a_ = a_ | 0b0001'00000;
                 }
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-                {
-                    a_ = a_ | 0b0010'00000;
-                }
+
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
                 {
-                    a_ = a_ | 0b0100'00000;
+                    a_ = a_ | 0b0010'00000;
                 }
             }
             break;
@@ -840,34 +882,34 @@ private:
     {
         assert(register_code <= 0b111 && register_code != 0b110);
 
-        switch (RegisterCode{register_code})
+        switch (register_code)
         {
-        case RegisterCode::A:
+        case 0b111:
         {
             return a_;
         }
         break;
-        case RegisterCode::B:
+        case 0b000:
         {
             return b_;
         }
-        case RegisterCode::C:
+        case 0b001:
         {
             return c_;
         }
-        case RegisterCode::D:
+        case 0b010:
         {
             return d_;
         }
-        case RegisterCode::E:
+        case 0b011:
         {
             return e_;
         }
-        case RegisterCode::H:
+        case 0b100:
         {
             return h_;
         }
-        case RegisterCode::L:
+        case 0b101:
         {
             return l_;
         }
@@ -879,22 +921,22 @@ private:
 
     RegisterPair &GetRegisterPair(uint8_t op_code) noexcept
     {
-        switch (RegisterPairCode((op_code & 0b0011'0000) >> 4))
+        switch ((op_code & 0b0011'0000) >> 4)
         {
-        case RegisterPairCode::BC:
+        case 0b00:
         {
             return bc_;
         }
         break;
-        case RegisterPairCode::DE:
+        case 0b01:
         {
             return de_;
         }
-        case RegisterPairCode::HL:
+        case 0b10:
         {
             return hl_;
         }
-        case RegisterPairCode::SP:
+        case 0b11:
         {
             return stack_pointer_;
         }
@@ -904,55 +946,45 @@ private:
         std::terminate(); // satisfy compiler (unreachable)
     }
 
-    enum class ConditionIdentifier : uint8_t
-    {
-        NZ = 0b000,
-        Z = 0b001,
-        NC = 0b010,
-        C = 0b011,
-        PO = 0b100,
-        PE = 0b101,
-        P = 0b110,
-        M = 0b111,
-    };
-
     bool CheckCondition(uint8_t op_code) const noexcept
     {
-        switch (ConditionIdentifier((op_code & 0b0011'1000) >> 3))
+        switch ((op_code & 0b0011'1000) >> 3)
         {
-        case ConditionIdentifier::NZ:
+        case 0b000: // non zero
         {
             return !flags_.zero;
         }
         break;
-        case ConditionIdentifier::Z:
+        case 0b001: // zero
         {
             return flags_.zero;
         }
         break;
-        case ConditionIdentifier::NC:
+        case 0b010: // no carry
         {
             return !flags_.carry;
         }
-        case ConditionIdentifier::C:
+        break;
+        case 0b011: // carry
         {
             return flags_.carry;
         }
-        case ConditionIdentifier::PO:
+        break;
+        case 0b100: // odd parity
         {
             return !flags_.parity;
         }
         break;
-        case ConditionIdentifier::PE:
+        case 0b101: // even parity
         {
             return flags_.parity;
         }
         break;
-        case ConditionIdentifier::P:
+        case 0b110: // positive
         {
             return !flags_.sign;
         }
-        case ConditionIdentifier::M:
+        case 0b111: // negative
         {
             return flags_.sign;
         }
@@ -965,18 +997,17 @@ private:
         }
     }
 
-    inline void SetAllFlags(uint16_t temp) noexcept
+    inline void SetAllFlags(uint16_t result, uint16_t carry_per_bit) noexcept
     {
-        SetAllFlagsExceptCarry(temp);
-        SetCarryFlag(temp);
+        SetNonCarryFlags(result);
+        SetCarryFlags(carry_per_bit);
     }
 
-    inline void SetAllFlagsExceptCarry(uint16_t temp) noexcept
+    inline void SetNonCarryFlags(uint16_t result) noexcept
     {
-        SetZeroFlag(temp);
-        SetSignFlag(temp);
-        SetParityFlag(temp);
-        SetAuxiliaryCarryFlag(temp);
+        SetZeroFlag(result);
+        SetSignFlag(result);
+        SetParityFlag(result);
     }
 
     inline void SetZeroFlag(uint16_t temp) noexcept
@@ -986,7 +1017,7 @@ private:
 
     inline void SetSignFlag(uint16_t temp) noexcept
     {
-        flags_.sign = (temp & 0b1000'0000) != 0;
+        flags_.sign = temp & 0b1000'0000;
     }
 
     inline void SetParityFlag(uint16_t temp) noexcept
@@ -1003,14 +1034,20 @@ private:
         flags_.parity = (sum_of_bits % 2) == 0;
     }
 
-    inline void SetCarryFlag(uint16_t temp) noexcept
+    inline void SetCarryFlags(uint16_t carry_per_bit) noexcept
     {
-        flags_.carry = temp > std::numeric_limits<uint8_t>::max();
+        SetCarryFlag(carry_per_bit);
+        SetAuxiliaryCarryFlag(carry_per_bit);
     }
 
-    inline void SetAuxiliaryCarryFlag(uint16_t temp) noexcept
+    inline void SetCarryFlag(uint16_t carry_per_bit) noexcept
     {
-        unused(temp); // not supported
+        flags_.carry = carry_per_bit & 0b1'0000'0000;
+    }
+
+    inline void SetAuxiliaryCarryFlag(uint16_t carry_per_bit) noexcept
+    {
+        flags_.auxiliary_carry = carry_per_bit & 0b0001'0000;
     }
 
     inline uint16_t GetInterruptAddress(uint8_t op_code) const noexcept

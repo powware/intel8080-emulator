@@ -6,25 +6,6 @@
 #include <string>
 #include <type_traits>
 
-enum class RegisterCode : uint8_t
-{
-    A = 0b111,
-    B = 0b000,
-    C = 0b001,
-    D = 0b010,
-    E = 0b011,
-    H = 0b100,
-    L = 0b101
-};
-
-enum RegisterPairCode : uint8_t
-{
-    BC = 0b00,
-    DE = 0b01,
-    HL = 0b10,
-    SP = 0b11
-};
-
 class Register final
 {
 public:

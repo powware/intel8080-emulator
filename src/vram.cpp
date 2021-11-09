@@ -23,12 +23,12 @@ VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / C
                                      XInitThreads();
 #endif // __linux__
                                      sf::RenderWindow window(sf::VideoMode(width, height), "Space Invaders", sf::Style::Close);
-                                     //window.setActive(false);
+                                     window.setActive(false);
 
                                      std::atomic<bool> render_thread_running = true;
                                      std::thread render_thread([&, this]()
                                                                {
-                                                                   //window.setActive(true);
+                                                                   window.setActive(true);
                                                                    sf::Texture texture;
                                                                    if (!texture.create(width, height))
                                                                    {
@@ -60,10 +60,14 @@ VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / C
                                                                        window.clear();
                                                                        window.draw(sprite);
                                                                        window.display();
+
+                                                                       std::this_thread::sleep_for(10us);
                                                                        cpu_.Interrupt(2);
 
-                                                                       std::this_thread::sleep_for(1ms);
+                                                                       std::this_thread::sleep_for(100us);
                                                                    }
+
+                                                                   window.setActive(false);
                                                                });
 
                                      const auto close_window = [&, this]()

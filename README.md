@@ -20,8 +20,8 @@ The application needs the roms folder within it's current working directory.
 
 ### Controls
 - Enter: insert coin
-- 1: Player 1
+- (NumPad)1: select player 1
 - Left: move left
 - Right: move right
-- Space: fire
+- Space: fire projectile
 

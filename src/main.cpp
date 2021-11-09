@@ -3,6 +3,7 @@
 
 #include "cpu.h"
 #include "logger.h"
+#include "utilities.h"
 
 int main()
 {
@@ -29,3 +30,14 @@ int main()
 
     return EXIT_SUCCESS;
 }
+
+#ifdef _WIN32
+#include <Windows.h>
+
+int __stdcall WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
+{
+    unused(hInst, hInstPrev, cmdline, cmdshow);
+
+    return main();
+}
+#endif

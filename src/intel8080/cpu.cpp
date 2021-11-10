@@ -10,7 +10,7 @@
 inline static std::tuple<uint16_t, uint8_t> Addition(uint8_t lhs, uint8_t rhs, bool carry = false)
 {
     uint16_t result = static_cast<uint16_t>(lhs + rhs + uint8_t(carry));
-    return std::tuple(result, static_cast<uint8_t>(result ^ lhs ^ rhs ^ uint8_t(carry) >> 1));
+    return std::tuple(result, static_cast<uint8_t>(result ^ lhs ^ rhs ^ (uint8_t(carry) >> 1)));
 }
 
 inline static std::tuple<uint16_t, uint8_t> Subtraction(uint8_t lhs, uint8_t rhs, bool carry = false)
@@ -877,9 +877,12 @@ Register &CPU::GetRegister(uint8_t register_code) noexcept
         return l_;
     }
     break;
+    default:
+    {
+        std::terminate(); // satisfy compiler (unreachable)
     }
-
-    std::terminate();
+    break;
+    }
 }
 
 RegisterPair &CPU::GetRegisterPair(uint8_t op_code) noexcept
@@ -904,9 +907,12 @@ RegisterPair &CPU::GetRegisterPair(uint8_t op_code) noexcept
         return stack_pointer_;
     }
     break;
+    default:
+    {
+        std::terminate(); // satisfy compiler (unreachable)
     }
-
-    std::terminate(); // satisfy compiler (unreachable)
+    break;
+    }
 }
 
 bool CPU::CheckCondition(uint8_t op_code) const noexcept
@@ -954,7 +960,7 @@ bool CPU::CheckCondition(uint8_t op_code) const noexcept
     break;
     default:
     {
-        std::terminate();
+        std::terminate(); // satisfy compiler (unreachable)
     }
     break;
     }

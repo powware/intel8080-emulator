@@ -9,7 +9,7 @@
 
 inline static std::tuple<uint16_t, uint8_t> Addition(uint8_t lhs, uint8_t rhs, bool carry = false)
 {
-    uint16_t result = lhs + rhs + uint8_t(carry);
+    uint16_t result = static_cast<uint16_t>(lhs + rhs + uint8_t(carry));
     return std::tuple(result, static_cast<uint8_t>(result ^ lhs ^ rhs ^ uint8_t(carry) >> 1));
 }
 

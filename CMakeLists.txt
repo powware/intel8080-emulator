@@ -46,11 +46,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     )
 
     if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
-        target_compile_DEFINITIONS(space_invaders PRIVATE -O0
-                                                          -ggdb
+        target_compile_options(space_invaders PRIVATE -O0
+                                                      -ggdb
         )
     else()
-        target_compile_DEFINITIONS(space_invaders PRIVATE -O2)
+        target_compile_options(space_invaders PRIVATE -O2)
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(space_invaders PRIVATE /W4
@@ -79,16 +79,16 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     )
 
     if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
-        target_compile_DEFINITIONS(space_invaders PRIVATE /Od)
+        target_compile_options(space_invaders PRIVATE /Od)
     else()
-        target_compile_DEFINITIONS(space_invaders PRIVATE /O2)
+        target_compile_options(space_invaders PRIVATE /O2)
     endif()
 else()
     message(WARNING "No warnings specified for the chosen compiler.")
 endif()
 
 if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
-    target_compile_DEFINITIONS(space_invaders PRIVATE DEBUG)
+    target_compile_definitions(space_invaders PRIVATE DEBUG)
 endif()
 
 target_include_directories(space_invaders PRIVATE ${PROJECT_SOURCE_DIR}/src/intel8080)

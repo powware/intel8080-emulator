@@ -6,10 +6,9 @@
 #include <tuple>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 
-#include "rom.h"
-#include "ram.h"
-#include "vram.h"
+#include "memory_interface.h"
 
 class Memory final
 {

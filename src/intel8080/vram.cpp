@@ -15,14 +15,14 @@
 
 using namespace std::chrono_literals;
 
-VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / CHAR_BIT) * height), pixels_(width * height * 4), window_thread_running_(true), cpu_(cpu)
+VRAM::VRAM(CPU &cpu) : window_thread_running_(true), cpu_(cpu)
 {
     window_thread_ = std::thread([=, this]()
                                  {
 #ifdef __linux__
                                      XInitThreads();
 #endif // __linux__
-                                     sf::RenderWindow window(sf::VideoMode(width, height), "Space Invaders", sf::Style::Close);
+                                     sf::RenderWindow window(sf::VideoMode(kWidth, kHeight), "Space Invaders", sf::Style::Close);
                                      window.setActive(false);
 
                                      std::atomic<bool> render_thread_running = true;
@@ -30,7 +30,7 @@ VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / C
                                                                {
                                                                    window.setActive(true);
                                                                    sf::Texture texture;
-                                                                   if (!texture.create(width, height))
+                                                                   if (!texture.create(kWidth, kHeight))
                                                                    {
                                                                        throw std::runtime_error("sf::Texture::create()");
                                                                    }
@@ -38,24 +38,24 @@ VRAM::VRAM(unsigned int width, unsigned int height, CPU &cpu) : data_((width / C
                                                                    sf::Sprite sprite(texture);
                                                                    while (render_thread_running)
                                                                    {
-                                                                       std::vector<uint8_t> data_copy;
+                                                                       std::array<uint8_t, kWidth *(kHeight / CHAR_BIT)> data_copy;
                                                                        {
                                                                            std::scoped_lock lock(data_mutex_);
                                                                            data_copy = data_;
                                                                        }
 
-                                                                       for (std::size_t y = 0; y < height / CHAR_BIT; ++y)
+                                                                       for (std::size_t y = 0; y < kHeight / CHAR_BIT; ++y)
                                                                        {
-                                                                           for (std::size_t x = 0; x < width; ++x)
+                                                                           for (std::size_t x = 0; x < kWidth; ++x)
                                                                            {
                                                                                for (uint8_t b = 0; b < CHAR_BIT; ++b)
                                                                                {
-                                                                                   std::memset(&pixels_[(height - 1 - (y * CHAR_BIT + b)) * width * 4 + x * 4], data_copy[x * (height / CHAR_BIT) + y] & (1 << b) ? 255 : 0, 4);
+                                                                                   std::memset(&pixels_[(kHeight - 1 - (y * CHAR_BIT + b)) * kWidth * 4 + x * 4], data_copy[x * (kHeight / CHAR_BIT) + y] & (1 << b) ? 255 : 0, sizeof(uint32_t));
                                                                                }
                                                                            }
                                                                        }
 
-                                                                       texture.update(pixels_.data());
+                                                                       texture.update(reinterpret_cast<uint8_t *>(pixels_.data()));
                                                                        cpu_.Interrupt(1);
                                                                        window.clear();
                                                                        window.draw(sprite);

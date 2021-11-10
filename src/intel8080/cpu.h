@@ -2,15 +2,10 @@
 #define CPU_H
 
 #include <cstdint>
-#include <iostream>
-#include <filesystem>
 #include <atomic>
 #include <mutex>
-#include <thread>
 
 #include "register.h"
-#include "ram.h"
-#include "rom.h"
 #include "memory.h"
 
 class CPU final

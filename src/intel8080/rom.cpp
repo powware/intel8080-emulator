@@ -1,6 +1,7 @@
 #include "rom.h"
 
 #include <fstream>
+#include <stdexcept>
 
 #include "utilities.h"
 

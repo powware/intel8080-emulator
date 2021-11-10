@@ -2,8 +2,9 @@
 #include <iostream>
 
 #include "cpu.h"
-#include "logger.h"
-#include "utilities.h"
+#include "ram.h"
+#include "rom.h"
+#include "vram.h"
 
 int main()
 {
@@ -18,12 +19,12 @@ int main()
         cpu.AddMemory<ROM>(space_invaders_path / "invaders.f");
         cpu.AddMemory<ROM>(space_invaders_path / "invaders.e");
         cpu.AddMemory<RAM>(0x400);
-        cpu.AddMemory<VRAM>(224, 256, cpu); // VRAM
+        cpu.AddMemory<VRAM>(cpu);
         cpu.Run();
     }
-    catch (const std::exception &e)
+    catch (const std::exception &exception)
     {
-        std::cout << e.what() << std::endl;
+        std::cout << exception.what() << std::endl;
 
         return EXIT_FAILURE;
     }
@@ -33,6 +34,8 @@ int main()
 
 #ifdef _WIN32
 #include <Windows.h>
+
+#include "utilities.h"
 
 int __stdcall WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {

@@ -10,14 +10,14 @@ set(CMAKE_CXX_STANDARD 20)
 
 project(intel8080-emulator CXX)
 
-add_executable(space_invaders WIN32 ${PROJECT_SOURCE_DIR}/src/main.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/cpu.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/register.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/memory.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/rom.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/ram.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/vram.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/logger.cpp
+add_executable(space_invaders WIN32 ${PROJECT_SOURCE_DIR}/src/space_invaders.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/cpu.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/register.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/memory.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/rom.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/ram.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/vram.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/intel8080/logger.cpp
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -91,7 +91,7 @@ if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
     target_compile_DEFINITIONS(space_invaders PRIVATE DEBUG)
 endif()
 
-target_include_directories(space_invaders PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(space_invaders PRIVATE ${PROJECT_SOURCE_DIR}/src/intel8080)
 
 ######################
 # SFML CONFIGURATION #

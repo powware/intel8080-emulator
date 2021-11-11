@@ -6,6 +6,7 @@
 #include <mutex>
 #include <thread>
 #include <array>
+#include <climits>
 
 #include <SFML/Graphics/RenderWindow.hpp>
 

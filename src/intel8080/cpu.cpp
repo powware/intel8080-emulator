@@ -316,7 +316,7 @@ void CPU::ExecuteInstruction(uint8_t op_code)
             correction += 6;
         }
 
-        if ((((a_ + correction) & 0b1111'0000) >> 4 > 9) || flags_.carry)
+        if (((((a_ + correction) & 0b1111'0000) >> 4) > 9) || flags_.carry)
         {
             correction += (6 << 4);
         }

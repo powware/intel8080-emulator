@@ -50,21 +50,21 @@ VRAM::VRAM(CPU &cpu) : window_thread_running_(true), cpu_(cpu)
                                                                            {
                                                                                for (uint8_t b = 0; b < CHAR_BIT; ++b)
                                                                                {
-                                                                                   std::memset(&pixels_[(kHeight - 1 - (y * CHAR_BIT + b)) * kWidth * 4 + x * 4], data_copy[x * (kHeight / CHAR_BIT) + y] & (1 << b) ? 255 : 0, sizeof(uint32_t));
+                                                                                   std::memset(&pixels_[(kHeight - 1 - (y * CHAR_BIT + b)) * kWidth + x], data_copy[x * (kHeight / CHAR_BIT) + y] & (1 << b) ? 255 : 0, sizeof(uint32_t));
                                                                                }
                                                                            }
                                                                        }
 
                                                                        texture.update(reinterpret_cast<uint8_t *>(pixels_.data()));
-                                                                       cpu_.Interrupt(1);
                                                                        window.clear();
                                                                        window.draw(sprite);
                                                                        window.display();
 
-                                                                       std::this_thread::sleep_for(10us);
+                                                                       constexpr auto kSleepInterval = (1s / 60.0) / 2.0; // 60hz devided into 2 sleep intervals
+                                                                       cpu_.Interrupt(1);
+                                                                       std::this_thread::sleep_for(kSleepInterval);
                                                                        cpu_.Interrupt(2);
-
-                                                                       std::this_thread::sleep_for(100us);
+                                                                       std::this_thread::sleep_for(kSleepInterval);
                                                                    }
 
                                                                    window.setActive(false);

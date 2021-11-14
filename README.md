@@ -8,7 +8,7 @@ An emulator for the Intel8080 CPU written in modern C++. Currently only setup to
 - [SFML 2.5](https://www.sfml-dev.org/tutorials/2.5/#getting-started) (static libraries)
 
 ### Building from source
-- `git clone git@github.com:powware/intel8080-emulator.git`
+- `git clone https://github.com/powware/intel8080-emulator.git`
 - `mkdir build`
 - `cd build`
 - `cmake ..`

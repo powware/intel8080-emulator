@@ -14,17 +14,17 @@ An emulator for the Intel8080 CPU written in modern C++. Currently only setup to
 - `cmake ..`
 - `cmake --build . --parallel --config Release`
 
-## Usage
+### Usage
 For the application to load the roms you need to have the roms folder within it's working directory.
 
-### Controls
+#### Controls
 - Enter: insert coin
 - (NumPad)1: select player 1
 - Left: move left
 - Right: move right
 - Space: fire projectile
 
-## Points of Improvement
+### Points of Improvement
 - better separation of ports via an interface/class (similar to ram, rom, vram)
 - make SFML optional when not compiling for space invaders using the method mentioned above
 - use intel8080 tests to valdiate correctness

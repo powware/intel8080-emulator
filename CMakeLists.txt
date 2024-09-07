@@ -7,7 +7,7 @@ endif()
 string(TOLOWER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_LOWER)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 project(intel8080-emulator CXX)
 
@@ -91,6 +91,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
   endif()
 else()
   message(WARNING "No warnings specified for the chosen compiler.")
+  find_package(X11 REQUIRED)
+
+  target_link_libraries(space_invaders PRIVATE X11::X11)
 endif()
 
 if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")

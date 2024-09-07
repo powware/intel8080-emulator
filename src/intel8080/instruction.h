@@ -9,6 +9,23 @@
 
 class Instruction
 {
+
+private:
+    const uint8_t mask_isolater_;
+    const uint8_t mask_;
+
+    template <std::size_t... indexes>
+    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) const noexcept
+    {
+        return static_cast<uint8_t>((((mask[indexes] == '0' || mask[indexes] == '1') << (CHAR_BIT - 1 - indexes)) | ...));
+    }
+
+    template <std::size_t... indexes>
+    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) const noexcept
+    {
+        return static_cast<uint8_t>((((mask[indexes] == '1') << (CHAR_BIT - 1 - indexes)) | ...));
+    }
+
 public:
     constexpr Instruction(const char *mask) noexcept : mask_isolater_(CreateMaskIsolater(mask, std::make_index_sequence<CHAR_BIT>{})), mask_(CreateMask(mask, std::make_index_sequence<CHAR_BIT>{}))
     {
@@ -35,21 +52,6 @@ public:
         return bitmask != data;
     }
 
-private:
-    const uint8_t mask_isolater_;
-    const uint8_t mask_;
-
-    template <std::size_t... indexes>
-    constexpr uint8_t CreateMaskIsolater(const char *mask, std::index_sequence<indexes...>) const noexcept
-    {
-        return static_cast<uint8_t>((((mask[indexes] == '0' || mask[indexes] == '1') << (CHAR_BIT - 1 - indexes)) | ...));
-    }
-
-    template <std::size_t... indexes>
-    constexpr uint8_t CreateMask(const char *mask, std::index_sequence<indexes...>) const noexcept
-    {
-        return static_cast<uint8_t>((((mask[indexes] == '1') << (CHAR_BIT - 1 - indexes)) | ...));
-    }
 };
 
 struct InstructionSet
